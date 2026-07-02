@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cream: #FAF8F5;
+  --warm-gray: #F5F0EB;
+  --dark-brown: #2C2015;
+  --mid-brown: #7B5B3A;
+  --light-tan: #D4B896;
+  --text-muted: #8C7B6B;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: white;
+}
+
+@layer utilities {
+  .text-dark-brown { color: var(--dark-brown); }
+  .text-mid-brown { color: var(--mid-brown); }
+  .text-text-muted { color: var(--text-muted); }
+  .bg-dark-brown { background-color: var(--dark-brown); }
+  .bg-mid-brown { background-color: var(--mid-brown); }
+  .bg-warm-gray { background-color: var(--warm-gray); }
+  .bg-cream { background-color: var(--cream); }
+  .border-dark-brown { border-color: var(--dark-brown); }
+}
