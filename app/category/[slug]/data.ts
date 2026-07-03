@@ -193,7 +193,7 @@ export const categories: CategoryData[] = [
       {
         id: "handbags",
         label: "Statement Handbags",
-        image: "/images/bags.png",
+        image: "/images/accessories.png",
         row: 1,
         span: 12,
         href: "/products/handbags",

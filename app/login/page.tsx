@@ -53,7 +53,7 @@ export default function LoginPage() {
         );
         await signInWithEmailAndPassword(auth, form.email, form.password);
         toast.success("Welcome back! Redirecting…");
-        router.push("/profile/account");
+        router.push("/");
     } catch (err) {
         const message = friendlyError((err as AuthError).code ?? "");
         setError(message);
@@ -71,7 +71,7 @@ export default function LoginPage() {
         const result = await signInWithPopup(auth, new GoogleAuthProvider());
         const firstName = result.user.displayName?.split(" ")[0] || "there";
         toast.success(`Welcome back, ${firstName}! 👋`);
-        router.push("/profile/account");
+        router.push("/");
     } catch (err) {
         const message = friendlyError((err as AuthError).code ?? "");
         setError(message);

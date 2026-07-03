@@ -82,7 +82,7 @@ export function useCart() {
   const addToCart = useCallback(
     async (product: AddToCartInput) => {
       if (!user) {
-        toast.error("Please wait a moment and try again.");
+        toast.error("Please log in to add items to your cart.");
         return;
       }
 

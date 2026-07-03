@@ -110,7 +110,7 @@ export default function SignupPage() {
         }
 
         toast.success("Account created successfully! Welcome to KgLuxe 🎉");
-        router.push("/profile/account");
+        router.push("/");
 
     } catch (err) {
         // Only Auth errors reach here now
@@ -151,7 +151,7 @@ export default function SignupPage() {
         }
 
         toast.success(`Welcome, ${firstName || "there"}! Your account is ready 🎉`);
-        router.push("/profile/account");
+        router.push("/");
 
     } catch (err) {
         const message = friendlyError((err as AuthError).code ?? "");

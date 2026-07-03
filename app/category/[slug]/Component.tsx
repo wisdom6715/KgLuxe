@@ -132,7 +132,7 @@ export default function Component({ data }: { data: CategoryData }) {
           {data.pills.map((pill) => (
             <Link
               key={pill}
-              href={`/product/${pill.toLowerCase().replace(/\s+/g, "-")}`}
+              href={`/products/${pill.toLowerCase().replace(/\s+/g, "-")}`}
               className="bg-neutral-100 text-neutral-900 text-xs tracking-[0.15em] uppercase px-4 py-3 sm:px-6 sm:py-4 hover:bg-white transition-colors"
             >
               {pill}
