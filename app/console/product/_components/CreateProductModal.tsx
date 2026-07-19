@@ -192,11 +192,23 @@ export default function CreateProductModal({
     setFormError("");
     setSubmitting(true);
 
+    // ── Step 1: upload image ──
+    let imageUrl: string;
     try {
-      // Only hit the upload endpoint if a *new* image was picked; otherwise
-      // keep the product's existing S3 URL as-is.
-      const imageUrl = imageFile ? await uploadImage(imageFile) : existingImageUrl!;
+      imageUrl = imageFile ? await uploadImage(imageFile) : existingImageUrl!;
+      // no toast here on purpose — "upload succeeded" isn't meaningful to the
+      // user yet, since the product hasn't been saved. Move straight to step 2.
+    } catch (err) {
+      console.error("Image upload failed:", err);
+      const message = err instanceof Error ? err.message : "Image upload failed. Please try again.";
+      setFormError(message);
+      toast.error("Couldn't upload the image. Please try again.");
+      setSubmitting(false);
+      return; // don't attempt the save without a valid image
+    }
 
+    // ── Step 2: save product ──
+    try {
       const payload = {
         name: form.name.trim(),
         description: form.description.trim(),
@@ -229,7 +241,8 @@ export default function CreateProductModal({
       onClose();
     } catch (err) {
       console.error(`Failed to ${isEditMode ? "update" : "create"} product:`, err);
-      setFormError("Something went wrong while saving. Please try again.");
+      const message = err instanceof Error ? err.message : "Something went wrong while saving. Please try again.";
+      setFormError(message);
       toast.error(`Couldn't ${isEditMode ? "update" : "create"} the product. Please try again.`);
     } finally {
       setSubmitting(false);
