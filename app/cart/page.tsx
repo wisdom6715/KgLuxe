@@ -8,6 +8,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { db, auth } from "@/lib/firebase.config";
 import { toast } from "sonner"
+import { useRouter } from "next/navigation";
 
 interface CartItem {
   id: string;
@@ -43,6 +44,7 @@ export default function CartPage() {
   const [items, setItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [mutatingId, setMutatingId] = useState<string | null>(null);
+  const router = useRouter()
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -239,11 +241,10 @@ export default function CartPage() {
                 Continue Shopping
               </a>
               <button
+                onClick={() => router.push("/cart/checkout")}
                 disabled={items.length === 0}
                 className="px-8 py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  background: items.length === 0 ? "#C9A96E" : "#C9A96E",
-                }}
+                style={{ background: "#C9A96E" }}
               >
                 Checkout
               </button>

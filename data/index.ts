@@ -130,10 +130,10 @@ export const footerColumns: FooterColumn[] = [
   {
     heading: "Explore",
     links: [
-      { label: "New Arrivals", href: "#" },
-      { label: "Men's Collection", href: "#" },
-      { label: "Women's Collection", href: "#" },
-      { label: "Accessories", href: "#" },
+      { label: "New Arrivals", href: "/all" },
+      { label: "Men's Collection", href: "/men" },
+      { label: "Women's Collection", href: "/women" },
+      { label: "Accessories", href: "/accessories" },
     ],
   },
   {

@@ -322,14 +322,14 @@ export default function Component() {
                     onClick={() => setSelectedColor(color)}
                     aria-label={color}
                     title={color}
-                    className={`w-10 h-10 sm:w-11 sm:h-11 border-2 transition-all ${
+                    className={`w-6 h-w-6 rounded-full sm:w-11 sm:h-11 border-2 transition-all ${
                       selectedColor === color
                         ? "border-neutral-900 scale-105"
                         : "border-neutral-200 hover:border-neutral-400"
                     }`}
                   >
                     <span
-                      className="block w-full h-full"
+                      className="block w-full h-full rounded-full"
                       style={{
                         backgroundColor: swatchColor(color),
                         boxShadow:
@@ -390,9 +390,9 @@ export default function Component() {
                 : "Add to Cart"}
             </button>
           )}
-          <button className="w-full border border-neutral-900 text-neutral-900 text-xs tracking-[0.15em] uppercase py-4 mb-8 mt-2 hover:bg-neutral-50 transition-colors">
-            Buy with Shop Pay
-          </button>
+          {/* <button className="w-full border border-neutral-900 text-neutral-900 text-xs tracking-[0.15em] uppercase py-4 mb-8 mt-2 hover:bg-neutral-50 transition-colors">
+            Buy Now
+          </button> */}
 
           {/* ACCORDION */}
           <div className="border-t border-neutral-200">

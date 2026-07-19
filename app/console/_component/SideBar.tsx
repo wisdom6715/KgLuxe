@@ -15,11 +15,12 @@ import {
   X,
 } from "lucide-react";
 import { auth } from "@/lib/firebase.config";
+import Image from "next/image";
 
 const NAV_ITEMS = [
-  { label: "Dashboard", href: "/console/admin/", icon: LayoutGrid },
-  { label: "Products", href: "/console/admin/product", icon: ShoppingBag },
-  { label: "Customers", href: "/console/admin/customers", icon: Users },
+  { label: "Products", href: "/console/product", icon: ShoppingBag },
+  { label: "Customers", href: "/console/customers", icon: Users },
+  { label: "Order", href: "/console/order", icon: Users },
 ];
 
 export default function AdminSidebar() {
@@ -65,9 +66,7 @@ export default function AdminSidebar() {
     <>
       {/* Mobile top bar */}
       <div className="lg:hidden flex items-center justify-between px-4 py-3.5 bg-[#EDE6D8] border-b border-[#DCD2BC] sticky top-0 z-40">
-        <h1 className="font-serif text-xl text-[#1A1A1A] leading-none">
-          KgLuxe
-        </h1>
+        <Image src={'/logo.png'} alt="logo" width={100} height={80} className="md:w-24 md:h-24 w-16 h-16" onClick={()=> router.push('/')}/>
         <button
           type="button"
           onClick={() => setMobileOpen(true)}
@@ -87,9 +86,7 @@ export default function AdminSidebar() {
           />
           <aside className="relative w-72 max-w-[80vw] min-h-screen bg-[#EDE6D8] border-r border-[#DCD2BC] flex flex-col">
             <div className="flex items-center justify-between px-6 pt-6 pb-6">
-              <h1 className="font-serif text-2xl text-[#1A1A1A] leading-none">
-                KgLuxe
-              </h1>
+              <Image src={'/logo.png'} alt="logo" width={100} height={80} className="md:w-24 md:h-24 w-16 h-16" onClick={()=> router.push('/')}/>
               <button
                 type="button"
                 onClick={() => setMobileOpen(false)}
@@ -122,9 +119,7 @@ export default function AdminSidebar() {
       <aside className="hidden lg:flex w-64 shrink-0 min-h-screen bg-[#EDE6D8] border-r border-[#DCD2BC] flex-col">
         {/* Brand */}
         <div className="px-6 pt-7 pb-6">
-          <h1 className="font-serif text-2xl text-[#1A1A1A] leading-none">
-            KgLuxe
-          </h1>
+          <Image src={'/logo.png'} alt="logo" width={100} height={80} className="md:w-24 md:h-24 w-16 h-16" onClick={()=> router.push('/')}/>
         </div>
 
         {/* Nav */}

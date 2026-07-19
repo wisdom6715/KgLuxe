@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { auth } from "@/lib/firebase.config";
 import { subNavItems } from "@/data";
+import Image from "next/image";
 
 export default function Header() {
   const pathname = usePathname();
@@ -45,12 +46,7 @@ export default function Header() {
       {/* Top nav */}
       <div className="h-14 md:h-20 flex items-center justify-between gap-2 md:gap-4">
         {/* Logo */}
-        <Link
-          href="/"
-          className="font-serif text-base sm:text-lg md:text-xl font-bold text-dark-brown tracking-tight flex-shrink-0"
-        >
-          KgLuxee
-        </Link>
+        <Image src={'/logo.png'} alt="logo" width={100} height={80} className="md:w-24 md:h-24 w-16 h-16 cursor-pointer " onClick={()=> router.push('/')}/>
 
         {/* Sub nav — desktop/tablet only */}
         <div className="hidden md:flex h-full border-gray-100 justify-center items-center flex-1 min-w-0 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
@@ -61,7 +57,7 @@ export default function Header() {
                 <Link
                   key={item.label}
                   href={item.href}
-                  className={`px-4 md:px-5 py-1.5 rounded-full text-xs font-medium transition-all flex-shrink-0 ${
+                  className={`px-4 md:px-5 py-1.5 rounded-full text-xs font-medium transition-all flex-shrink-0 cursor-pointer ${
                     isActive
                       ? " text-black border border-[#747878]"
                       : "text-gray-600 hover:text-dark-brown border border-transparent hover:border-gray-200"
@@ -96,22 +92,19 @@ export default function Header() {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" />
                   </svg>
-                  <span className="absolute -top-1.5 -right-1.5 bg-dark-brown text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-medium">
-                    2
-                  </span>
                 </button>
               </>
             ) : (
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => router.push("/login")}
-                  className="text-xs font-medium text-gray-600 hover:text-dark-brown transition-colors whitespace-nowrap"
+                  className="text-xs font-medium cursor-pointer text-gray-600 hover:text-dark-brown transition-colors whitespace-nowrap"
                 >
                   Login
                 </button>
                 <button
                   onClick={() => router.push("/signup")}
-                  className="px-4 py-1.5 rounded-full text-xs font-medium bg-dark-brown text-white hover:opacity-90 transition-opacity whitespace-nowrap"
+                  className="px-4 py-1.5 rounded-full cursor-pointer text-xs font-medium bg-dark-brown text-white hover:opacity-90 transition-opacity whitespace-nowrap"
                 >
                   Get started
                 </button>
@@ -122,7 +115,7 @@ export default function Header() {
 
         {/* Hamburger — mobile only */}
         <button
-          className="md:hidden text-gray-600 hover:text-dark-brown transition-colors p-1.5 -m-1.5"
+          className="md:hidden text-gray-600 cursor-pointer hover:text-dark-brown transition-colors p-1.5 -m-1.5"
           aria-label={menuOpen ? "Close menu" : "Open menu"}
           aria-expanded={menuOpen}
           onClick={() => setMenuOpen((v) => !v)}
@@ -179,15 +172,9 @@ export default function Header() {
                     onClick={() => goTo("/cart")}
                     className="flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-medium text-gray-600 hover:text-dark-brown hover:border-gray-200 border border-transparent transition-all text-left"
                   >
-                    <span className="relative">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" />
-                      </svg>
-                      <span className="absolute -top-1.5 -right-1.5 bg-dark-brown text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-medium">
-                        2
-                      </span>
-                    </span>
-                    Cart
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" />
+                    </svg>
                   </button>
                 </div>
               ) : (

@@ -7,7 +7,7 @@ import { useCart } from "@/hook/useAddToCart";
 const formatNaira = (value: number) =>
   new Intl.NumberFormat("en-NG", {
     style: "currency",
-    currency: "NGN",
+    currency: "USD",
     maximumFractionDigits: 0,
   }).format(value);
 

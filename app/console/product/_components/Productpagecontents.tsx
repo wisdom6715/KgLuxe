@@ -29,7 +29,7 @@ const PAGE_SIZE = 10;
 const formatNaira = (value: number) =>
   new Intl.NumberFormat("en-NG", {
     style: "currency",
-    currency: "NGN",
+    currency: "USD",
     maximumFractionDigits: 0,
   }).format(value);
 
@@ -63,6 +63,7 @@ export default function ProductsPageContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [stockFilter, setStockFilter] = useState<
@@ -181,6 +182,21 @@ export default function ProductsPageContent() {
     URL.revokeObjectURL(url);
   };
 
+  const openCreateModal = () => {
+    setEditingProduct(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (product: Product) => {
+    setEditingProduct(product);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingProduct(null);
+  };
+
   const startEntry = filtered.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const endEntry = Math.min(page * PAGE_SIZE, filtered.length);
 
@@ -205,7 +221,7 @@ export default function ProductsPageContent() {
           </button>
           <button
             type="button"
-            onClick={() => setIsModalOpen(true)}
+            onClick={openCreateModal}
             className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-black hover:opacity-90 active:scale-[0.98] transition-all"
           >
             <Plus size={15} />
@@ -406,8 +422,9 @@ export default function ProductsPageContent() {
                     <div className="flex items-center justify-end gap-3">
                       <button
                         type="button"
-                        title="Editing is coming soon"
-                        className="text-gray-400 hover:text-gray-700 transition-colors cursor-not-allowed"
+                        title="Edit product"
+                        onClick={() => openEditModal(p)}
+                        className="text-gray-400 hover:text-gray-700 transition-colors"
                       >
                         <Pencil size={15} />
                       </button>
@@ -470,7 +487,11 @@ export default function ProductsPageContent() {
         )}
       </div>
 
-      <CreateProductModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
+      <CreateProductModal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        product={editingProduct}
+      />
     </div>
   );
 }

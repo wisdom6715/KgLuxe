@@ -14,8 +14,8 @@ export default function Home() {
         <SubHero />
         <CategorySection />
         <PopularProducts />
-        <Footer />
       </main>
+      <Footer />
     </>
   );
 }

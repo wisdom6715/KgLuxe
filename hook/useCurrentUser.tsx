@@ -61,5 +61,6 @@ export function useCurrentUser() {
     return () => unsubAuth();
   }, []);
 
+  console.log("user data: ", user)
   return { user, loading };
 }

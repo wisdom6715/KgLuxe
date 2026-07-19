@@ -11,7 +11,7 @@ import {
 
 const navItems = [
   { label: "Account Information", href: "/profile/account", icon: User },
-  // { label: "Order History",        href: "/profile/orders",  icon: Clock },
+  { label: "Order History",        href: "/profile/order",  icon: Clock },
   { label: "Addresses",            href: "/profile/addresses", icon: MapPin },
   { label: "Wishlist",             href: "/profile/wishlist",  icon: Heart },
 ];

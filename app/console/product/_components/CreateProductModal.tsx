@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { toast } from "sonner";
 import { X, ChevronDown, Check, ImagePlus, Loader2 } from "lucide-react";
 import { db } from "@/lib/firebase.config";
@@ -14,6 +14,7 @@ import {
   EMPTY_PRODUCT_FORM,
   type CategoryValue,
   type ProductFormState,
+  type Product,
 } from "./type";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -22,14 +23,31 @@ const UPLOAD_ENDPOINT = "https://app.nexovea.com/nexoviia/v1/upload-resources";
 interface CreateProductModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Pass an existing product to open the modal in edit mode; omit/null for create mode. */
+  product?: Product | null;
 }
+
+const productToForm = (product: Product): ProductFormState => ({
+  name: product.name ?? "",
+  description: product.description ?? "",
+  price: String(product.price ?? ""),
+  stock: String(product.stock ?? ""),
+  sizes: product.sizes ?? [],
+  colors: product.colors ?? [],
+  category: (product.category ?? "") as CategoryValue,
+  subCategory: product.subCategory ?? "",
+});
 
 export default function CreateProductModal({
   isOpen,
   onClose,
+  product = null,
 }: CreateProductModalProps) {
+  const isEditMode = Boolean(product);
+
   const [form, setForm] = useState<ProductFormState>(EMPTY_PRODUCT_FORM);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [openDropdown, setOpenDropdown] = useState<
     "category" | "subCategory" | "sizes" | "colors" | null
@@ -40,26 +58,40 @@ export default function CreateProductModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Reset everything whenever the modal is closed, so reopening starts fresh
+  // Populate (or reset) the form whenever the modal opens/closes, or the
+  // product being edited changes.
   useEffect(() => {
     if (!isOpen) {
       setForm(EMPTY_PRODUCT_FORM);
       setImageFile(null);
+      setExistingImageUrl(null);
       setFormError("");
       setOpenDropdown(null);
+      return;
     }
-  }, [isOpen]);
 
-  // Build/revoke the local preview URL whenever the chosen file changes
+    if (product) {
+      setForm(productToForm(product));
+      setExistingImageUrl(product.imageUrl ?? null);
+    } else {
+      setForm(EMPTY_PRODUCT_FORM);
+      setExistingImageUrl(null);
+    }
+    setImageFile(null);
+    setFormError("");
+  }, [isOpen, product]);
+
+  // Build/revoke the local preview URL whenever the chosen file changes.
+  // Falls back to the existing product image when there's no new file yet.
   useEffect(() => {
     if (!imageFile) {
-      setImagePreview(null);
+      setImagePreview(existingImageUrl);
       return;
     }
     const url = URL.createObjectURL(imageFile);
     setImagePreview(url);
     return () => URL.revokeObjectURL(url);
-  }, [imageFile]);
+  }, [imageFile, existingImageUrl]);
 
   // Close any open dropdown on outside click
   useEffect(() => {
@@ -105,7 +137,7 @@ export default function CreateProductModal({
 
   const validate = (): string => {
     if (!form.name.trim()) return "Product name is required.";
-    if (!imageFile) return "Please upload a product image.";
+    if (!imageFile && !existingImageUrl) return "Please upload a product image.";
     const priceNum = Number(form.price);
     if (!form.price || Number.isNaN(priceNum) || priceNum <= 0)
       return "Enter a valid price.";
@@ -138,7 +170,7 @@ export default function CreateProductModal({
       throw new Error(`Upload failed (${res.status}): ${text}`);
     }
 
-    const data = await res.json() as {
+    const data = (await res.json()) as {
       message: string;
       s3_url: string;
       original_name: string;
@@ -161,15 +193,11 @@ export default function CreateProductModal({
     setSubmitting(true);
 
     try {
-      // 1. Upload image to S3 via the Nexoviia upload endpoint
-      const imageUrl = await uploadImage(imageFile!);
+      // Only hit the upload endpoint if a *new* image was picked; otherwise
+      // keep the product's existing S3 URL as-is.
+      const imageUrl = imageFile ? await uploadImage(imageFile) : existingImageUrl!;
 
-      // 2. Build the SKU and write the Firestore document
-      const sku = `${form.category.slice(0, 3).toUpperCase()}-${Date.now()
-        .toString()
-        .slice(-6)}`;
-
-      await addDoc(collection(db, "products"), {
+      const payload = {
         name: form.name.trim(),
         description: form.description.trim(),
         price: Number(form.price),
@@ -178,18 +206,31 @@ export default function CreateProductModal({
         colors: form.colors,
         category: form.category,
         subCategory: form.subCategory,
-        sku,
-        imageUrl,   // permanent S3 URL
-        createdAt: serverTimestamp(),
+        imageUrl,
         updatedAt: serverTimestamp(),
-      });
+      };
 
-      toast.success(`${form.name.trim()} added to inventory`);
+      if (isEditMode && product) {
+        await updateDoc(doc(db, "products", product.id), payload);
+        toast.success(`${form.name.trim()} updated`);
+      } else {
+        const sku = `${form.category.slice(0, 3).toUpperCase()}-${Date.now()
+          .toString()
+          .slice(-6)}`;
+
+        await addDoc(collection(db, "products"), {
+          ...payload,
+          sku,
+          createdAt: serverTimestamp(),
+        });
+        toast.success(`${form.name.trim()} added to inventory`);
+      }
+
       onClose();
     } catch (err) {
-      console.error("Failed to create product:", err);
+      console.error(`Failed to ${isEditMode ? "update" : "create"} product:`, err);
       setFormError("Something went wrong while saving. Please try again.");
-      toast.error("Couldn't create the product. Please try again.");
+      toast.error(`Couldn't ${isEditMode ? "update" : "create"} the product. Please try again.`);
     } finally {
       setSubmitting(false);
     }
@@ -203,7 +244,9 @@ export default function CreateProductModal({
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 sticky top-0 bg-white z-10">
-          <h2 className="font-serif text-xl text-gray-900">Add Product</h2>
+          <h2 className="font-serif text-xl text-gray-900">
+            {isEditMode ? "Edit Product" : "Add Product"}
+          </h2>
           <button
             type="button"
             onClick={onClose}
@@ -279,7 +322,7 @@ export default function CreateProductModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold tracking-wide text-gray-500 mb-1.5">
-                PRICE (₦)
+                PRICE ($)
               </label>
               <input
                 type="number"
@@ -396,7 +439,11 @@ export default function CreateProductModal({
               className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-black hover:opacity-90 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center gap-2"
             >
               {submitting && <Loader2 size={15} className="animate-spin" />}
-              {submitting ? "Saving…" : "Save Product"}
+              {submitting
+                ? "Saving…"
+                : isEditMode
+                ? "Save Changes"
+                : "Save Product"}
             </button>
           </div>
         </form>
