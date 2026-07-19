@@ -218,7 +218,7 @@ export default function CustomersPageContent() {
             <div className="min-w-[720px]">
               <div className="grid grid-cols-[2.2fr_1.3fr_1fr_1.1fr_1fr_60px] items-center px-6 py-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold tracking-wide text-gray-500">
                 <span>CUSTOMER</span>
-                <span>LOCATION</span>
+                {/* <span>LOCATION</span> */}
                 <span>TOTAL ORDERS</span>
                 <span>TOTAL SPEND</span>
                 <span>STATUS</span>
@@ -250,7 +250,7 @@ export default function CustomersPageContent() {
                         <p className="text-xs text-gray-400 mt-0.5">{c.email}</p>
                       </div>
                     </div>
-                    <span className="text-sm text-gray-600">{c.location}</span>
+                    {/* <span className="text-sm text-gray-600">{c.location}</span> */}
                     <span className="text-sm text-gray-700">{c.orders}</span>
                     <span className="text-sm font-semibold text-gray-900">
                       {formatUsd(c.spend)}
