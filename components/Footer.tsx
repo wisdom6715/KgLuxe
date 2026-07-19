@@ -104,7 +104,7 @@ export default function Footer() {
               KgLuxee
             </a>
             <p className="text-sm text-text-muted leading-relaxed max-w-xs sm:max-w-none">
-              Luxury in every
+              Luxury in every detail
             </p>
           </div>
 

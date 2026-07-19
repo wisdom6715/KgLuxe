@@ -5,7 +5,7 @@ import Script from "next/script";
 
 export const metadata: Metadata = {
   title: "KgLuxee — Editorial Fashion",
-  description: "Elevating your everyday essentials through editorial minimalism and superior craftsmanship.",
+  description: "Luxury in every detail",
 };
 
 export default function RootLayout({
