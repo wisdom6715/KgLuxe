@@ -7,7 +7,7 @@ import {
   measureSteps,
   features,
 } from "./data";
-import { FeatureGlyph, TapeMeasureIcon, HangerIcon } from "./icon";
+import { FeatureGlyph, TapeMeasureIcon, HangerIcon } from "./SizeGuideIcon";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
 import Image from "next/image";

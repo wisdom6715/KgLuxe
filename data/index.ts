@@ -14,7 +14,7 @@ export const subNavItems: NavItem[] = [
   { label: "Fabrics", href: "/category/fabrics" },
   { label: "Accessories", href: "/category/accessories" },
   { label: "Occasion", href: "/category/occasion" },
-  { label: "Custom", href: "/category/custom-wear" },
+  // { label: "Custom", href: "/category/custom-wear" },
 ];
 
 export const hero = {
@@ -51,24 +51,28 @@ export const categories: Category[] = [
     label: "Shoes",
     image: "/images/footwear.png",
     tag: "SHOES",
+    href: "/category/children"
   },
   {
     id: "cat-2",
     label: "Accessories",
     image: "/images/jewellery.jpg",
     tag: "ACCESSORIES",
+    href: "/category/accessories"
   },
   {
     id: "cat-3",
     label: "Bags",
     image: "/images/accessories.png",
     tag: "BAG",
+    href: "/category/accessories"
   },
   {
     id: "cat-4",
     label: "men",
     image: "/images/men-category.png",
     tag: "Men",
+    href: "/category/men"
   },
 ];
 

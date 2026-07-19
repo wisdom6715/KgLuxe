@@ -21,6 +21,7 @@ import {
 import { useParams } from "next/navigation";
 import { db, auth } from "@/lib/firebase.config";
 import { toast } from "sonner";
+import Link from "next/link";
 
 // ─── Firestore shape ──────────────────────────────────────────────────────────
 
@@ -280,9 +281,9 @@ export default function Component() {
                 <span className="text-xs tracking-[0.15em] uppercase font-medium">
                   Size
                 </span>
-                <button className="text-xs underline text-neutral-600">
+                <Link href={'/size-guide'} className="text-xs underline text-neutral-600" >
                   Size Guide
-                </button>
+                </Link>
               </div>
               <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-8">
                 {product.sizes.map((size) => (

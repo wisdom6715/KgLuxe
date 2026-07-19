@@ -3,10 +3,13 @@
 import { useState } from "react";
 import { categories, categoryTabs } from "@/data";
 import type { Category } from "@/types";
+import { useRouter } from "next/navigation";
 
 function CategoryCard({ category }: { category: Category }) {
+  const router = useRouter()
+
   return (
-    <div className="relative group overflow-hidden rounded-lg cursor-pointer aspect-square">
+    <div className="relative group overflow-hidden rounded-lg cursor-pointer aspect-square" onClick={()=> router.push(category?.href)}>
       <img
         src={category.image}
         alt={category.label}

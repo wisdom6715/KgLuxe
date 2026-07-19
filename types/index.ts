@@ -8,6 +8,7 @@ export interface Category {
   label: string;
   image: string;
   tag: string;
+  href: string
 }
 
 export interface Product {
