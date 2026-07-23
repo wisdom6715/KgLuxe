@@ -76,7 +76,7 @@ export const categories: CategoryData[] = [
       {
         id: "ready-to-wear",
         label: "Ready To Wear",
-        image: "/images/abaya.png",
+        image: "/category/ready.webp",
         row: 2,
         span: 4,
         href: "/products/abayas",
@@ -84,7 +84,7 @@ export const categories: CategoryData[] = [
       {
         id: "couture",
         label: "Couture",
-        image: "/images/abaya.png",
+        image: "/category/couture.jpg",
         row: 2,
         span: 4,
         href: "/products/abayas",
@@ -92,7 +92,7 @@ export const categories: CategoryData[] = [
       {
         id: "african-heritage",
         label: "African Heritage",
-        image: "/images/abaya.png",
+        image: "/images/family.png",
         row: 2,
         span: 4,
         href: "/products/abayas",
