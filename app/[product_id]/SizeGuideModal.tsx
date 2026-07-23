@@ -338,13 +338,14 @@ export default function SizeGuideModal({
             </div>
           </div>
 
-          <p className="mt-5 text-[11px] text-neutral-500 leading-relaxed">
-            Please note for fitted dresses: Measurements may vary by ±1 inch (±2.5 cm) due to handmade tailoring,
+          <p className="mt-5 text-[11px] text-neutral-500 leading-relaxed">Please Note:</p>
+          <p className="mt-2 text-[11px] text-neutral-500 leading-relaxed">
+            Fitted Dresses: Measurements may vary by ±1 inch (±2.5 cm) due to handmade tailoring,
             fabric type, and design details. For the best fit, compare your own
             measurements against this guide before placing your order. Need a
             custom fit? Contact us for made-to-measure sizing.
           </p>
-          <p className="mt-1 text-[11px] text-neutral-500 leading-relaxed">Please note for boubou, kaftan etc: All free sizes include 6-8 inches (15-20 cm) of ease on the burst, waist and hip measurements to achieve our signature flowing luxury fit</p>
+          <p className="mt-1 text-[11px] text-neutral-500 leading-relaxed">For Boubou, Kaftan etc: All free sizes include 6-8 inches (15-20 cm) of ease on the burst, waist and hip measurements to achieve our signature flowing luxury fit</p>
         </div>
       </div>
     </div>
