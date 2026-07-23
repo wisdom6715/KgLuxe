@@ -21,7 +21,7 @@ interface Product {
   id: string;
   name: string;
   price: number;
-  imageUrl: string;
+  imageUrls: string[];
   category: string;
   subCategory: string;
   sizes: string[];
@@ -60,6 +60,7 @@ const COLORS = [
   { name: "darkgray", hex: "#555555" },
   { name: "tan",      hex: "#D4B896" },
 ];
+
 
 const SORT_OPTIONS = [
   "Latest Arrivals",
@@ -215,6 +216,7 @@ function ProductCard({
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
   const soldOut = product.stock === 0;
+  const coverImage = product?.imageUrls?.[0]
 
   return (
     <div
@@ -228,7 +230,7 @@ function ProductCard({
         style={{ aspectRatio: "3/4" }}
       >
         <img
-          src={product.imageUrl}
+          src={coverImage}
           alt={product.name}
           className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
         />
@@ -612,7 +614,7 @@ export default function ProductsPage() {
                         id: product.id,
                         name: product.name,
                         price: product.price,
-                        imageUrl: product.imageUrl,
+                        imageUrl: product.imageUrls[0],
                       })
                     }
                     addBusy={isAdding(product.id)}
@@ -621,7 +623,7 @@ export default function ProductsPage() {
                         id: product.id,
                         name: product.name,
                         price: product.price,
-                        imageUrl: product.imageUrl,
+                        imageUrl: product.imageUrls[0],
                         stock: product.stock,
                         color:
                           product.colors && product.colors.length > 0
