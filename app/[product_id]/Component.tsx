@@ -22,6 +22,10 @@ import { useParams } from "next/navigation";
 import { db, auth } from "@/lib/firebase.config";
 import { toast } from "sonner";
 import Link from "next/link";
+import CustomMeasurementFields, {
+  type Measurement,
+} from "@/components/CustomMeasurementFields";
+import SizeGuideModal from "./SizeGuideModal";
 
 // ─── Firestore shape ──────────────────────────────────────────────────────────
 
@@ -36,10 +40,12 @@ interface Product {
   category: string;
   subCategory: string;
   sku: string;
-  imageUrl: string;
+  imageUrls: string[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const PLACEHOLDER_IMAGE = "/placeholder-product.png";
 
 const formatNaira = (value: number) =>
   new Intl.NumberFormat("en-US", {
@@ -47,6 +53,113 @@ const formatNaira = (value: number) =>
     currency: "USD",
     minimumFractionDigits: 2,
   }).format(value);
+
+const isCustomSize = (size: string) => size.trim().toLowerCase() === "custom";
+
+// ─── Image slider (custom — no jQuery dependency) ────────────────────────────
+
+const SWIPE_THRESHOLD_PX = 50;
+
+function ProductImageSlider({
+  images,
+  altBase,
+}: {
+  images: string[];
+  altBase: string;
+}) {
+  const [index, setIndex] = useState(0);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [touchDeltaX, setTouchDeltaX] = useState(0);
+
+  const hasMultiple = images.length > 1;
+
+  const goTo = (next: number) => {
+    const clamped = (next + images.length) % images.length;
+    setIndex(clamped);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+    setTouchDeltaX(0);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartX === null) return;
+    setTouchDeltaX(e.touches[0].clientX - touchStartX);
+  };
+
+  const handleTouchEnd = () => {
+    if (Math.abs(touchDeltaX) > SWIPE_THRESHOLD_PX) {
+      goTo(touchDeltaX < 0 ? index + 1 : index - 1);
+    }
+    setTouchStartX(null);
+    setTouchDeltaX(0);
+  };
+
+  return (
+    <div
+      className="relative w-full h-[420px] sm:h-[520px] md:h-[650px] lg:h-[800px] overflow-hidden bg-[#F0EDE8] select-none touch-pan-y"
+      onTouchStart={hasMultiple ? handleTouchStart : undefined}
+      onTouchMove={hasMultiple ? handleTouchMove : undefined}
+      onTouchEnd={hasMultiple ? handleTouchEnd : undefined}
+    >
+      <div
+        className="flex h-full transition-transform duration-300 ease-out"
+        style={{ transform: `translateX(-${index * 100}%)` }}
+      >
+        {images.map((url, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={`${url}-${i}`}
+            src={url}
+            alt={`${altBase}${images.length > 1 ? ` — image ${i + 1}` : ""}`}
+            className="w-full h-full object-contain flex-shrink-0"
+            draggable={false}
+          />
+        ))}
+      </div>
+
+      {hasMultiple && (
+        <>
+          <button
+            type="button"
+            onClick={() => goTo(index - 1)}
+            aria-label="Previous image"
+            className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/85 hover:bg-white flex items-center justify-center text-neutral-800 shadow-sm transition-colors"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={() => goTo(index + 1)}
+            aria-label="Next image"
+            className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/85 hover:bg-white flex items-center justify-center text-neutral-800 shadow-sm transition-colors"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+
+          <div className="absolute bottom-3 sm:bottom-4 inset-x-0 flex items-center justify-center gap-1.5">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => goTo(i)}
+                aria-label={`Go to image ${i + 1}`}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === index ? "w-5 bg-neutral-900" : "w-1.5 bg-neutral-900/30 hover:bg-neutral-900/50"
+                }`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 const swatchColor = (color: string) => {
   const known: Record<string, string> = {
@@ -68,12 +181,8 @@ function ProductSkeleton() {
   return (
     <main className="bg-white px-4 sm:px-8 md:px-16 lg:px-24 xl:px-40 text-neutral-900">
       <div className="grid lg:grid-cols-[1fr_480px]">
-        <div className="animate-pulse flex flex-col gap-2">
+        <div className="animate-pulse">
           <div className="w-full h-[420px] sm:h-[520px] md:h-[650px] lg:h-[800px] bg-gray-200" />
-          <div className="grid grid-cols-2 gap-2">
-            <div className="h-[260px] sm:h-[320px] md:h-[400px] lg:h-[480px] bg-gray-200" />
-            <div className="h-[260px] sm:h-[320px] md:h-[400px] lg:h-[480px] bg-gray-200" />
-          </div>
         </div>
         <div className="px-5 sm:px-8 md:px-12 py-8 sm:py-10 animate-pulse flex flex-col gap-4">
           <div className="h-3 w-40 bg-gray-200 rounded" />
@@ -111,11 +220,14 @@ export default function Component() {
 
   const [selectedSize, setSelectedSize] = useState<string>("");
   const [selectedColor, setSelectedColor] = useState<string>("");
+  const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [quantity, setQuantity] = useState(1);
   const [openSection, setOpenSection] = useState<"details" | "shipping" | null>(null);
 
   const [user, setUser] = useState<User | null>(null);
   const [addStatus, setAddStatus] = useState<"idle" | "adding" | "added">("idle");
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
+
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -155,6 +267,13 @@ export default function Component() {
     fetch();
   }, [productId]);
 
+  // Reset custom measurements whenever the selection moves away from "Custom"
+  useEffect(() => {
+    if (!isCustomSize(selectedSize)) {
+      setMeasurements([]);
+    }
+  }, [selectedSize]);
+
   if (loading) return <ProductSkeleton />;
 
   if (notFound || !product) {
@@ -167,12 +286,27 @@ export default function Component() {
 
   const soldOut = product.stock === 0;
   const breadcrumb = [product.category, product.subCategory, product.name];
+  const gallery = product.imageUrls?.length ? product.imageUrls : [PLACEHOLDER_IMAGE];
+  const customSelected = isCustomSize(selectedSize);
 
   const handleAddToCart = async () => {
     if (product.sizes.length > 0 && !selectedSize) {
       toast.error("Please select a size.");
       return;
     }
+
+    if (customSelected) {
+      if (measurements.length === 0) {
+        toast.error("Please add at least one measurement (in inches).");
+        return;
+      }
+      const hasEmpty = measurements.some((m) => !m.value.trim());
+      if (hasEmpty) {
+        toast.error("Please enter a value for each measurement you've added.");
+        return;
+      }
+    }
+
     if (product.colors.length > 0 && !selectedColor) {
       toast.error("Please select a color.");
       return;
@@ -186,35 +320,42 @@ export default function Component() {
     try {
       const cartRef = collection(db, "users", user.uid, "add-to-cart");
 
-      // Check if this exact product+size+color combo is already in the cart —
-      // if so, bump quantity instead of creating a duplicate row.
-      const dupQuery = query(
-        cartRef,
-        where("product_id", "==", product.id),
-        where("size", "==", selectedSize || null),
-        where("color", "==", selectedColor || null)
-      );
-      const dupSnap = await getDocs(dupQuery);
+      // Custom sizes carry per-order measurements, so never merge these into
+      // an existing line — each custom request should be its own cart entry.
+      if (!customSelected) {
+        const dupQuery = query(
+          cartRef,
+          where("product_id", "==", product.id),
+          where("size", "==", selectedSize || null),
+          where("color", "==", selectedColor || null)
+        );
+        const dupSnap = await getDocs(dupQuery);
 
-      if (!dupSnap.empty) {
-        const existing = dupSnap.docs[0];
-        const newQty = existing.data().quantity + quantity;
-        await updateDoc(doc(cartRef, existing.id), {
-          quantity: Math.min(newQty, product.stock),
-        });
-      } else {
-        await addDoc(cartRef, {
-          product_id: product.id,
-          name: product.name,
-          price: product.price,
-          imageUrl: product.imageUrl,
-          stock: product.stock,
-          size: selectedSize || null,
-          color: selectedColor || null,
-          quantity,
-          createdAt: serverTimestamp(),
-        });
+        if (!dupSnap.empty) {
+          const existing = dupSnap.docs[0];
+          const newQty = existing.data().quantity + quantity;
+          await updateDoc(doc(cartRef, existing.id), {
+            quantity: Math.min(newQty, product.stock),
+          });
+          setAddStatus("added");
+          toast.success("Added to cart");
+          setTimeout(() => setAddStatus("idle"), 2000);
+          return;
+        }
       }
+
+      await addDoc(cartRef, {
+        product_id: product.id,
+        name: product.name,
+        price: product.price,
+        imageUrl: gallery[0],
+        stock: product.stock,
+        size: selectedSize || null,
+        color: selectedColor || null,
+        sizeMeasurements: customSelected ? measurements : null,
+        quantity,
+        createdAt: serverTimestamp(),
+      });
 
       setAddStatus("added");
       toast.success("Added to cart");
@@ -230,17 +371,11 @@ export default function Component() {
     <main className="bg-white px-4 sm:px-8 md:px-16 lg:px-24 xl:px-40 text-neutral-900 mt-6 sm:mt-10">
       <div className="grid lg:grid-cols-[1fr_480px]">
 
-        {/* LEFT: image(s) */}
+        {/* LEFT: image slider */}
         <div className="flex flex-col gap-2">
-          <div className="relative w-full h-[420px] sm:h-[520px] md:h-[650px] lg:h-[800px] overflow-hidden bg-[#F0EDE8]">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={product.imageUrl}
-              alt={product.name}
-              className="w-full h-full object-contain"
-            />
-          </div>
+          <ProductImageSlider key={productId} images={gallery} altBase={product.name} />
         </div>
+        <SizeGuideModal isOpen={sizeGuideOpen} onClose={() => setSizeGuideOpen(false)} />
 
         {/* RIGHT: product info */}
         <div className="px-5 sm:px-8 md:px-12 py-8 sm:py-10 lg:sticky lg:top-0 lg:h-fit">
@@ -281,11 +416,15 @@ export default function Component() {
                 <span className="text-xs tracking-[0.15em] uppercase font-medium">
                   Size
                 </span>
-                <Link href={'/size-guide'} className="text-xs underline text-neutral-600" >
+                <button
+                  type="button"
+                  onClick={() => setSizeGuideOpen(true)}
+                  className="text-xs underline text-neutral-600"
+                >
                   Size Guide
-                </Link>
+                </button>
               </div>
-              <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-8">
+              <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-4">
                 {product.sizes.map((size) => (
                   <button
                     key={size}
@@ -300,6 +439,23 @@ export default function Component() {
                   </button>
                 ))}
               </div>
+
+              {/* CUSTOM SIZE MEASUREMENTS */}
+              {customSelected && (
+                <div className="mb-8 border border-neutral-200 rounded-md p-4">
+                  <p className="text-xs tracking-[0.15em] uppercase font-medium mb-2">
+                    Custom Measurements <span className="text-red-500">*</span>
+                  </p>
+                  <p className="text-xs text-neutral-500 mb-4">
+                    Choose a measurement, enter its size in inches, then add another
+                    if needed. At least one is required.
+                  </p>
+                  <CustomMeasurementFields
+                    measurements={measurements}
+                    onChange={setMeasurements}
+                  />
+                </div>
+              )}
             </>
           )}
 
@@ -323,14 +479,14 @@ export default function Component() {
                     onClick={() => setSelectedColor(color)}
                     aria-label={color}
                     title={color}
-                    className={`w-6 h-w-6 rounded-full sm:w-11 sm:h-11 border-2 transition-all ${
+                    className={` rounded-full  border-2 transition-all ${
                       selectedColor === color
                         ? "border-neutral-900 scale-105"
                         : "border-neutral-200 hover:border-neutral-400"
                     }`}
                   >
                     <span
-                      className="block w-full h-full rounded-full"
+                      className="block w-12 h-12 rounded-full"
                       style={{
                         backgroundColor: swatchColor(color),
                         boxShadow:
@@ -391,9 +547,6 @@ export default function Component() {
                 : "Add to Cart"}
             </button>
           )}
-          {/* <button className="w-full border border-neutral-900 text-neutral-900 text-xs tracking-[0.15em] uppercase py-4 mb-8 mt-2 hover:bg-neutral-50 transition-colors">
-            Buy Now
-          </button> */}
 
           {/* ACCORDION */}
           <div className="border-t border-neutral-200">
@@ -407,7 +560,7 @@ export default function Component() {
                 {
                   key: "shipping" as const,
                   label: "Shipping & Returns",
-                  body: "Standard delivery takes 3–5 business days. Express options are available at checkout. Items can be returned within 14 days of receipt in original condition. Please contact support for return authorisation.",
+                  body: "Standard delivery takes 10 business days, items can be returned within 2 days of receipt in original condition and contact support for return authorisation within 24 hours of receiving the item.",
                 },
               ] as const
             ).map((section) => (

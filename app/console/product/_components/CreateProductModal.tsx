@@ -3,22 +3,28 @@
 
 import { useEffect, useRef, useState } from "react";
 import { collection, addDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import {
+  ref as storageRef,
+  uploadBytes,
+  getDownloadURL,
+  deleteObject,
+} from "firebase/storage";
 import { toast } from "sonner";
 import { X, ChevronDown, Check, ImagePlus, Loader2 } from "lucide-react";
-import { db } from "@/lib/firebase.config";
+import { db, storage } from "@/lib/firebase.config";
 import {
   CATEGORIES,
   SUBCATEGORIES,
   SIZES,
   COLORS,
   EMPTY_PRODUCT_FORM,
+  MAX_PRODUCT_IMAGES,
   type CategoryValue,
   type ProductFormState,
   type Product,
 } from "./type";
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
-const UPLOAD_ENDPOINT = "https://app.nexovea.com/nexoviia/v1/upload-resources";
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB per image
 
 interface CreateProductModalProps {
   isOpen: boolean;
@@ -26,6 +32,12 @@ interface CreateProductModalProps {
   /** Pass an existing product to open the modal in edit mode; omit/null for create mode. */
   product?: Product | null;
 }
+
+// A single image slot in the modal — either one already saved on the
+// product (existing) or a freshly picked file waiting to be uploaded (new).
+type ImageSlot =
+  | { kind: "existing"; url: string; path: string }
+  | { kind: "new"; file: File; previewUrl: string };
 
 const productToForm = (product: Product): ProductFormState => ({
   name: product.name ?? "",
@@ -46,9 +58,10 @@ export default function CreateProductModal({
   const isEditMode = Boolean(product);
 
   const [form, setForm] = useState<ProductFormState>(EMPTY_PRODUCT_FORM);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [images, setImages] = useState<ImageSlot[]>([]);
+  // Storage paths for existing images the user removed in this session —
+  // only actually deleted from Storage once the save succeeds.
+  const [removedPaths, setRemovedPaths] = useState<string[]>([]);
   const [openDropdown, setOpenDropdown] = useState<
     "category" | "subCategory" | "sizes" | "colors" | null
   >(null);
@@ -63,8 +76,8 @@ export default function CreateProductModal({
   useEffect(() => {
     if (!isOpen) {
       setForm(EMPTY_PRODUCT_FORM);
-      setImageFile(null);
-      setExistingImageUrl(null);
+      setImages([]);
+      setRemovedPaths([]);
       setFormError("");
       setOpenDropdown(null);
       return;
@@ -72,26 +85,32 @@ export default function CreateProductModal({
 
     if (product) {
       setForm(productToForm(product));
-      setExistingImageUrl(product.imageUrl ?? null);
+      const urls = product.imageUrls ?? [];
+      const paths = product.imagePaths ?? [];
+      setImages(
+        urls.map((url, i) => ({
+          kind: "existing" as const,
+          url,
+          path: paths[i] ?? "",
+        }))
+      );
     } else {
       setForm(EMPTY_PRODUCT_FORM);
-      setExistingImageUrl(null);
+      setImages([]);
     }
-    setImageFile(null);
+    setRemovedPaths([]);
     setFormError("");
   }, [isOpen, product]);
 
-  // Build/revoke the local preview URL whenever the chosen file changes.
-  // Falls back to the existing product image when there's no new file yet.
+  // Revoke local object URLs for any "new" slots when the modal unmounts/closes
   useEffect(() => {
-    if (!imageFile) {
-      setImagePreview(existingImageUrl);
-      return;
-    }
-    const url = URL.createObjectURL(imageFile);
-    setImagePreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [imageFile, existingImageUrl]);
+    return () => {
+      images.forEach((img) => {
+        if (img.kind === "new") URL.revokeObjectURL(img.previewUrl);
+      });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   // Close any open dropdown on outside click
   useEffect(() => {
@@ -112,17 +131,54 @@ export default function CreateProductModal({
     ? SUBCATEGORIES[form.category as CategoryValue]
     : [];
 
-  const handleFileSelect = (file: File | null) => {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file.");
+  const handleFilesSelect = (fileList: FileList | null) => {
+    if (!fileList || fileList.length === 0) return;
+    const incoming = Array.from(fileList);
+
+    const room = MAX_PRODUCT_IMAGES - images.length;
+    if (room <= 0) {
+      toast.error(`You can only upload up to ${MAX_PRODUCT_IMAGES} images.`);
       return;
     }
-    if (file.size > MAX_IMAGE_BYTES) {
-      toast.error("Image must be smaller than 5MB.");
-      return;
+
+    const accepted: ImageSlot[] = [];
+    for (const file of incoming) {
+      if (accepted.length >= room) {
+        toast.error(`Only ${MAX_PRODUCT_IMAGES} images allowed — some files were skipped.`);
+        break;
+      }
+      if (!file.type.startsWith("image/")) {
+        toast.error(`${file.name} isn't an image and was skipped.`);
+        continue;
+      }
+      if (file.size > MAX_IMAGE_BYTES) {
+        toast.error(`${file.name} is over 10MB and was skipped.`);
+        continue;
+      }
+      accepted.push({
+        kind: "new",
+        file,
+        previewUrl: URL.createObjectURL(file),
+      });
     }
-    setImageFile(file);
+
+    if (accepted.length > 0) {
+      setImages((prev) => [...prev, ...accepted]);
+    }
+    // allow re-selecting the same file later
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => {
+      const target = prev[index];
+      if (target.kind === "new") {
+        URL.revokeObjectURL(target.previewUrl);
+      } else if (target.kind === "existing" && target.path) {
+        setRemovedPaths((paths) => [...paths, target.path]);
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const toggleMulti = (field: "sizes" | "colors", value: string) => {
@@ -137,7 +193,7 @@ export default function CreateProductModal({
 
   const validate = (): string => {
     if (!form.name.trim()) return "Product name is required.";
-    if (!imageFile && !existingImageUrl) return "Please upload a product image.";
+    if (images.length === 0) return "Please upload at least one product image.";
     const priceNum = Number(form.price);
     if (!form.price || Number.isNaN(priceNum) || priceNum <= 0)
       return "Enter a valid price.";
@@ -153,33 +209,17 @@ export default function CreateProductModal({
   };
 
   /**
-   * Uploads the image to the Nexoviia S3-backed endpoint and returns the
-   * permanent S3 URL. Throws if the request fails so the caller can handle it.
+   * Uploads a single image to Firebase Storage under products/ and returns
+   * both its download URL and storage path (path is kept so we can delete
+   * it later without a backend endpoint).
    */
-  const uploadImage = async (file: File): Promise<string> => {
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const res = await fetch(UPLOAD_ENDPOINT, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => res.statusText);
-      throw new Error(`Upload failed (${res.status}): ${text}`);
-    }
-
-    const data = (await res.json()) as {
-      message: string;
-      s3_url: string;
-      original_name: string;
-      mime_type: string;
-      size_bytes: number;
-      uploaded_at: string;
-    };
-
-    return data.s3_url;
+  const uploadImage = async (file: File): Promise<{ url: string; path: string }> => {
+    const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
+    const path = `products/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeName}`;
+    const fileRef = storageRef(storage, path);
+    await uploadBytes(fileRef, file);
+    const url = await getDownloadURL(fileRef);
+    return { url, path };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -192,19 +232,25 @@ export default function CreateProductModal({
     setFormError("");
     setSubmitting(true);
 
-    // ── Step 1: upload image ──
-    let imageUrl: string;
+    // ── Step 1: upload any new images (existing ones are already on Storage) ──
+    let finalUrls: string[];
+    let finalPaths: string[];
     try {
-      imageUrl = imageFile ? await uploadImage(imageFile) : existingImageUrl!;
-      // no toast here on purpose — "upload succeeded" isn't meaningful to the
-      // user yet, since the product hasn't been saved. Move straight to step 2.
+      const uploaded = await Promise.all(
+        images.map(async (img) => {
+          if (img.kind === "existing") return { url: img.url, path: img.path };
+          return uploadImage(img.file);
+        })
+      );
+      finalUrls = uploaded.map((u) => u.url);
+      finalPaths = uploaded.map((u) => u.path);
     } catch (err) {
       console.error("Image upload failed:", err);
       const message = err instanceof Error ? err.message : "Image upload failed. Please try again.";
       setFormError(message);
-      toast.error("Couldn't upload the image. Please try again.");
+      toast.error("Couldn't upload the images. Please try again.");
       setSubmitting(false);
-      return; // don't attempt the save without a valid image
+      return; // don't attempt the save without valid images
     }
 
     // ── Step 2: save product ──
@@ -218,7 +264,8 @@ export default function CreateProductModal({
         colors: form.colors,
         category: form.category,
         subCategory: form.subCategory,
-        imageUrl,
+        imageUrls: finalUrls,
+        imagePaths: finalPaths,
         updatedAt: serverTimestamp(),
       };
 
@@ -236,6 +283,18 @@ export default function CreateProductModal({
           createdAt: serverTimestamp(),
         });
         toast.success(`${form.name.trim()} added to inventory`);
+      }
+
+      // Clean up any images the user removed during editing — do this last,
+      // and don't let a cleanup failure block the save from being reported.
+      if (removedPaths.length > 0) {
+        Promise.all(
+          removedPaths.map((path) =>
+            deleteObject(storageRef(storage, path)).catch((err) =>
+              console.error("Failed to delete removed image:", path, err)
+            )
+          )
+        );
       }
 
       onClose();
@@ -278,43 +337,65 @@ export default function CreateProductModal({
 
           {/* Image upload */}
           <div>
-            <label className="block text-xs font-semibold tracking-wide text-gray-500 mb-2">
-              PRODUCT IMAGE
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-xs font-semibold tracking-wide text-gray-500">
+                PRODUCT IMAGES
+              </label>
+              <span className="text-xs text-gray-400">
+                {images.length}/{MAX_PRODUCT_IMAGES}
+              </span>
+            </div>
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*"
+              multiple
               className="hidden"
-              onChange={(e) => handleFileSelect(e.target.files?.[0] ?? null)}
+              onChange={(e) => handleFilesSelect(e.target.files)}
             />
-            {imagePreview ? (
-              <div className="relative w-full h-48 rounded-lg overflow-hidden border border-gray-200">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imagePreview}
-                  alt="Product preview"
-                  className="absolute inset-0 w-full h-full object-cover"
-                />
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+              {images.map((img, i) => {
+                const src = img.kind === "existing" ? img.url : img.previewUrl;
+                return (
+                  <div
+                    key={img.kind === "existing" ? `${img.path}-${i}` : img.previewUrl}
+                    className="relative aspect-square rounded-lg overflow-hidden border border-gray-200"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={src}
+                      alt={`Product image ${i + 1}`}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                    {i === 0 && (
+                      <span className="absolute top-1 left-1 text-[10px] font-medium bg-black/70 text-white px-1.5 py-0.5 rounded">
+                        Cover
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      className="absolute top-1 right-1 bg-white/90 hover:bg-white text-gray-700 rounded-full p-0.5 transition-colors"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                );
+              })}
+              {images.length < MAX_PRODUCT_IMAGES && (
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="absolute bottom-2 right-2 text-xs font-medium bg-white/90 px-3 py-1.5 rounded-md hover:bg-white transition-colors"
+                  className="aspect-square rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-[#C9A96E] hover:text-[#C9A96E] transition-colors"
                 >
-                  Change
+                  <ImagePlus size={20} strokeWidth={1.5} />
+                  <span className="text-[11px]">Add</span>
                 </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-full h-40 rounded-lg border-2 border-dashed border-gray-200 flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-[#C9A96E] hover:text-[#C9A96E] transition-colors"
-              >
-                <ImagePlus size={24} strokeWidth={1.5} />
-                <span className="text-sm">Click to upload an image</span>
-                <span className="text-xs">PNG or JPG, up to 5MB</span>
-              </button>
-            )}
+              )}
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">
+              PNG or JPG, up to 10MB each — up to {MAX_PRODUCT_IMAGES} images. First image is the cover.
+            </p>
           </div>
 
           {/* Name */}

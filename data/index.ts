@@ -134,19 +134,18 @@ export const footerColumns: FooterColumn[] = [
   {
     heading: "Explore",
     links: [
-      { label: "New Arrivals", href: "/all" },
-      { label: "Men's Collection", href: "/men" },
-      { label: "Women's Collection", href: "/women" },
-      { label: "Accessories", href: "/accessories" },
+      { label: "New Arrivals", href: "/products/all" },
+      { label: "Men's Collection", href: "/products/men" },
+      { label: "Women's Collection", href: "/products/women" },
+      { label: "Accessories", href: "/products/accessories" },
     ],
   },
   {
     heading: "Help",
     links: [
-      { label: "Privacy Policy", href: "#" },
-      { label: "Terms of Service", href: "#" },
-      { label: "Shipping & Returns", href: "#" },
-      { label: "Contact Us", href: "#" },
+      { label: "About Us", href: "/about" },
+      { label: "Privacy Policy", href: "/privacy-policy" },
+      { label: "Terms of Service", href: "/terms-of-service" },
     ],
   },
 ];

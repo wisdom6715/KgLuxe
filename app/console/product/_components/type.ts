@@ -14,37 +14,42 @@ export type CategoryValue = (typeof CATEGORIES)[number]["value"];
 
 export const SUBCATEGORIES: Record<CategoryValue, string[]> = {
   women: [
-    "dresses-gowns",
-    "kimonos-boubou",
-    "kaftans-abayas",
-    "jumpsuits-skirts",
-    "tops-blouses",
+    "dresses",
+    "kimonos",
+    "abayas",
+    "kaftans-boubou",
+    "jumpsuits",
+    "shirt-blouses",
     "trousers",
+    "skirts",
+    "mother-daughter",
+    "footwears"
   ],
   men: [
-    "agbada-sequined",
-    "tailoring-native",
-    "shirts-trousers",
-    "footwear",
-    "jackets",
+    "african-heritage",
+    "modern-classics",
+    "formal-wear",
+    "casual-luxe",
+    "accessories",
+    "father-son"
   ],
   fabrics: [
-    "Ankara",
-    "Lace",
-    "George",
-    "Chiffon",
-    "Organza",
-    "Silk",
-    "Adire",
-    "Aso Oke",
+    "ankara",
+    "luxury-lace",
+    "brocade-and-jacquard",
+    "silk-and-akin",
+    "linen-and-cotton",
+    "luxury-organza",
+    "exclusive-print",
+    "aso-oke",
     "Velvet",
   ],
-  accessories: ["handbags", "jewellery", "shades"],
-  occasion: ["wedding-bridal", "family-matching"],
-  children: ["boy", "girls", "footwear"],
+  accessories: ["jewellery", "shades", "scarves-and-shawls", "bags", "headwraps", "belt", "luxury-gift-shirts"],
+  occasion: ["bridal", "family-matching", "party-wear-(aso-ebi)", "mother of the Bride", "Wedding Guest"],
+  children: ["boy", "girls", "footwear", "baby", "family-matching", "bag", "special-occassion"],
 };
 
-export const SIZES = ["SM", "M", "L", "XL", "XXL"] as const;
+export const SIZES = ["SM", "M", "L", "XL", "XXL", "CUSTOM"] as const;
 export type SizeValue = (typeof SIZES)[number];
 
 export const COLORS = [
@@ -64,6 +69,7 @@ export const COLORS = [
 ] as const;
 
 export const LOW_STOCK_THRESHOLD = 15;
+export const MAX_PRODUCT_IMAGES = 5;
 
 export type StockStatus = "in-stock" | "low-stock" | "out-of-stock";
 
@@ -84,14 +90,16 @@ export interface Product {
   category: CategoryValue;
   subCategory: string;
   sku: string;
-  imageUrl: string;
-  imagePath: string; // storage path, kept so we can delete the file later
+  /** Download URLs, in display order (first = cover image). Max 5. */
+  imageUrls: string[];
+  /** Firebase Storage paths, parallel to imageUrls — needed to delete files later. */
+  imagePaths: string[];
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
 
 // Shape used while building the create-product form, before it becomes a
-// Firestore document (no id/sku/imagePath yet — those are generated on submit).
+// Firestore document (no id/sku/imagePaths yet — those are generated on submit).
 export interface ProductFormState {
   name: string;
   description: string;

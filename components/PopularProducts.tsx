@@ -11,12 +11,14 @@ interface Product {
   id: string;
   name: string;
   price: number;
-  imageUrl: string;
+  imageUrls: string[];
   category: string;
   subCategory?: string;
   badge?: string;
   stock?: number; // optional until it's added to every product doc
 }
+
+const PLACEHOLDER_IMAGE = "/placeholder-product.png";
 
 const formatNaira = (value: number) =>
   new Intl.NumberFormat("en-NG", {
@@ -44,12 +46,13 @@ function ProductCard({
 }: ProductCardProps) {
   const router = useRouter();
   const soldOut = product.stock === 0;
+  const coverImage = product.imageUrls?.[0] ?? PLACEHOLDER_IMAGE;
 
   return (
     <div className="group cursor-pointer w-full" onClick={() => router.push(`/${product.id}`)}>
       <div className="relative overflow-hidden rounded-lg bg-warm-gray h-[240px] xs:h-[300px] sm:h-[380px] md:h-[420px] lg:h-[470px] w-full mb-3 sm:mb-4">
         <img
-          src={product.imageUrl}
+          src={coverImage}
           alt={product.name}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
@@ -207,7 +210,7 @@ export default function PopularProducts() {
                   id: product.id,
                   name: product.name,
                   price: product.price,
-                  imageUrl: product.imageUrl,
+                  imageUrl: product.imageUrls?.[0] ?? PLACEHOLDER_IMAGE,
                 })
               }
               onQuickAdd={() =>
@@ -215,7 +218,7 @@ export default function PopularProducts() {
                   id: product.id,
                   name: product.name,
                   price: product.price,
-                  imageUrl: product.imageUrl,
+                  imageUrl: product.imageUrls?.[0] ?? PLACEHOLDER_IMAGE,
                   stock: product.stock,
                   quantity: 1,
                 })

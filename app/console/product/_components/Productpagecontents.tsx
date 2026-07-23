@@ -9,6 +9,7 @@ import {
   deleteDoc,
   doc,
 } from "firebase/firestore";
+import { ref as storageRef, deleteObject } from "firebase/storage";
 import { toast } from "sonner";
 import {
   Search,
@@ -20,7 +21,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { db } from "@/lib/firebase.config";
+import { db, storage } from "@/lib/firebase.config";
 import { CATEGORIES, getStockStatus, type Product } from "./type";
 import CreateProductModal from "./CreateProductModal";
 
@@ -143,10 +144,13 @@ export default function ProductsPageContent() {
 
     try {
       await deleteDoc(doc(db, "products", product.id));
-      // Note: the product image lives on S3 (uploaded via
-      // app.nexovea.com/nexoviia/v1/upload-resources) — there's no client-side
-      // delete for it. Wire up a DELETE endpoint on the backend if you want to
-      // clean up orphaned S3 objects when a product is removed.
+      // Clean up the product's images from Firebase Storage too. Best-effort —
+      // a failed cleanup here shouldn't block the product from being deleted.
+      (product.imagePaths ?? []).forEach((path) => {
+        deleteObject(storageRef(storage, path)).catch((err) =>
+          console.error("Failed to delete image:", path, err)
+        );
+      });
       setSelectedIds((prev) => {
         const next = new Set(prev);
         next.delete(product.id);
@@ -400,7 +404,7 @@ export default function ProductsPageContent() {
                     <div className="flex items-center gap-3 pr-4">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
-                        src={p.imageUrl}
+                        src={p.imageUrls?.[0]}
                         alt={p.name}
                         className="w-12 h-12 rounded-md object-cover border border-gray-100 flex-shrink-0"
                       />

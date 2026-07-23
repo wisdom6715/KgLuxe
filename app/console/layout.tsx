@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import AdminSidebar from "./_component/SideBar";
 
 export const metadata: Metadata = {
-  title: "KgLuxe — Editorial Fashion",
-  description: "Elevating your everyday essentials through editorial minimalism and superior craftsmanship.",
+  title: "KgLuxee — Luxury in every deatil",
+  description: "Luxury in every deatil",
 };
 
 export default function RootLayout({
