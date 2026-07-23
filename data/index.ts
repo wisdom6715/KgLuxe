@@ -138,6 +138,7 @@ export const footerColumns: FooterColumn[] = [
       { label: "Men's Collection", href: "/products/men" },
       { label: "Women's Collection", href: "/products/women" },
       { label: "Accessories", href: "/products/accessories" },
+      { label: "Children", href: "/products/children" },
     ],
   },
   {

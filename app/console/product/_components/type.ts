@@ -14,16 +14,15 @@ export type CategoryValue = (typeof CATEGORIES)[number]["value"];
 
 export const SUBCATEGORIES: Record<CategoryValue, string[]> = {
   women: [
+    "new-arrival",
+    "ready-to-wear",
     "dresses",
-    "kimonos",
-    "abayas",
+    "couture",
+    "african-heritage",
+    "modest-wear",
     "kaftans-boubou",
-    "jumpsuits",
-    "shirt-blouses",
-    "trousers",
-    "skirts",
+    "two-piece-set",
     "mother-daughter",
-    "footwears"
   ],
   men: [
     "african-heritage",
@@ -37,14 +36,14 @@ export const SUBCATEGORIES: Record<CategoryValue, string[]> = {
     "ankara",
     "luxury-lace",
     "brocade-and-jacquard",
-    "silk-and-akin",
+    "silk-and-satin",
     "linen-and-cotton",
     "luxury-organza",
     "exclusive-print",
     "aso-oke",
     "Velvet",
   ],
-  accessories: ["jewellery", "shades", "scarves-and-shawls", "bags", "headwraps", "belt", "luxury-gift-shirts"],
+  accessories: ["jewellery", "heels", "shades", "scarves-and-shawls", "bags", "headwraps", "belt", "luxury-gift-shirts"],
   occasion: ["bridal", "family-matching", "party-wear-(aso-ebi)", "mother of the Bride", "Wedding Guest"],
   children: ["boy", "girls", "footwear", "baby", "family-matching", "bag", "special-occassion"],
 };

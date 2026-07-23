@@ -290,6 +290,11 @@ export default function Component() {
   const customSelected = isCustomSize(selectedSize);
 
   const handleAddToCart = async () => {
+    if (!user) {
+      toast.error("Please log in to add items to your cart.");
+      return;
+    }
+
     if (product.sizes.length > 0 && !selectedSize) {
       toast.error("Please select a size.");
       return;
