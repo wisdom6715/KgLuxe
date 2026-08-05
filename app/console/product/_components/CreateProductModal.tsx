@@ -18,23 +18,22 @@ import {
   SIZES,
   COLORS,
   EMPTY_PRODUCT_FORM,
+  EMPTY_SIZE_PRICING,
   MAX_PRODUCT_IMAGES,
   type CategoryValue,
   type ProductFormState,
   type Product,
+  type SizePricing,
 } from "./type";
 
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10MB per image
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 
 interface CreateProductModalProps {
   isOpen: boolean;
   onClose: () => void;
-  /** Pass an existing product to open the modal in edit mode; omit/null for create mode. */
   product?: Product | null;
 }
 
-// A single image slot in the modal — either one already saved on the
-// product (existing) or a freshly picked file waiting to be uploaded (new).
 type ImageSlot =
   | { kind: "existing"; url: string; path: string }
   | { kind: "new"; file: File; previewUrl: string };
@@ -48,6 +47,7 @@ const productToForm = (product: Product): ProductFormState => ({
   colors: product.colors ?? [],
   category: (product.category ?? "") as CategoryValue,
   subCategory: product.subCategory ?? "",
+  sizePricing: product.sizePricing ?? EMPTY_SIZE_PRICING,
 });
 
 export default function CreateProductModal({
@@ -59,8 +59,6 @@ export default function CreateProductModal({
 
   const [form, setForm] = useState<ProductFormState>(EMPTY_PRODUCT_FORM);
   const [images, setImages] = useState<ImageSlot[]>([]);
-  // Storage paths for existing images the user removed in this session —
-  // only actually deleted from Storage once the save succeeds.
   const [removedPaths, setRemovedPaths] = useState<string[]>([]);
   const [openDropdown, setOpenDropdown] = useState<
     "category" | "subCategory" | "sizes" | "colors" | null
@@ -71,8 +69,6 @@ export default function CreateProductModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  // Populate (or reset) the form whenever the modal opens/closes, or the
-  // product being edited changes.
   useEffect(() => {
     if (!isOpen) {
       setForm(EMPTY_PRODUCT_FORM);
@@ -82,7 +78,6 @@ export default function CreateProductModal({
       setOpenDropdown(null);
       return;
     }
-
     if (product) {
       setForm(productToForm(product));
       const urls = product.imageUrls ?? [];
@@ -102,7 +97,6 @@ export default function CreateProductModal({
     setFormError("");
   }, [isOpen, product]);
 
-  // Revoke local object URLs for any "new" slots when the modal unmounts/closes
   useEffect(() => {
     return () => {
       images.forEach((img) => {
@@ -112,14 +106,11 @@ export default function CreateProductModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // Close any open dropdown on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (modalRef.current && !modalRef.current.contains(e.target as Node)) return;
       const target = e.target as HTMLElement;
-      if (!target.closest("[data-dropdown-root]")) {
-        setOpenDropdown(null);
-      }
+      if (!target.closest("[data-dropdown-root]")) setOpenDropdown(null);
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -134,13 +125,11 @@ export default function CreateProductModal({
   const handleFilesSelect = (fileList: FileList | null) => {
     if (!fileList || fileList.length === 0) return;
     const incoming = Array.from(fileList);
-
     const room = MAX_PRODUCT_IMAGES - images.length;
     if (room <= 0) {
       toast.error(`You can only upload up to ${MAX_PRODUCT_IMAGES} images.`);
       return;
     }
-
     const accepted: ImageSlot[] = [];
     for (const file of incoming) {
       if (accepted.length >= room) {
@@ -155,28 +144,18 @@ export default function CreateProductModal({
         toast.error(`${file.name} is over 10MB and was skipped.`);
         continue;
       }
-      accepted.push({
-        kind: "new",
-        file,
-        previewUrl: URL.createObjectURL(file),
-      });
+      accepted.push({ kind: "new", file, previewUrl: URL.createObjectURL(file) });
     }
-
-    if (accepted.length > 0) {
-      setImages((prev) => [...prev, ...accepted]);
-    }
-    // allow re-selecting the same file later
+    if (accepted.length > 0) setImages((prev) => [...prev, ...accepted]);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const removeImage = (index: number) => {
     setImages((prev) => {
       const target = prev[index];
-      if (target.kind === "new") {
-        URL.revokeObjectURL(target.previewUrl);
-      } else if (target.kind === "existing" && target.path) {
+      if (target.kind === "new") URL.revokeObjectURL(target.previewUrl);
+      else if (target.kind === "existing" && target.path)
         setRemovedPaths((paths) => [...paths, target.path]);
-      }
       return prev.filter((_, i) => i !== index);
     });
   };
@@ -191,14 +170,26 @@ export default function CreateProductModal({
     });
   };
 
+  const setSizePricingField = (
+    field: keyof SizePricing,
+    value: string
+  ) => {
+    setForm((f) => ({
+      ...f,
+      sizePricing: {
+        ...f.sizePricing,
+        [field]: value === "" ? "" : value,
+      },
+    }));
+  };
+
   const validate = (): string => {
     if (!form.name.trim()) return "Product name is required.";
     if (images.length === 0) return "Please upload at least one product image.";
     const priceNum = Number(form.price);
-    if (!form.price || Number.isNaN(priceNum) || priceNum <= 0)
-      return "Enter a valid price.";
+    if (!form.price || isNaN(priceNum) || priceNum <= 0) return "Enter a valid base price.";
     const stockNum = Number(form.stock);
-    if (form.stock === "" || Number.isNaN(stockNum) || stockNum < 0)
+    if (form.stock === "" || isNaN(stockNum) || stockNum < 0)
       return "Enter a valid stock quantity.";
     if (form.sizes.length === 0) return "Select at least one size.";
     if (form.colors.length === 0) return "Select at least one color.";
@@ -208,11 +199,6 @@ export default function CreateProductModal({
     return "";
   };
 
-  /**
-   * Uploads a single image to Firebase Storage under products/ and returns
-   * both its download URL and storage path (path is kept so we can delete
-   * it later without a backend endpoint).
-   */
   const uploadImage = async (file: File): Promise<{ url: string; path: string }> => {
     const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, "_");
     const path = `products/${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeName}`;
@@ -225,14 +211,10 @@ export default function CreateProductModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const validationError = validate();
-    if (validationError) {
-      setFormError(validationError);
-      return;
-    }
+    if (validationError) { setFormError(validationError); return; }
     setFormError("");
     setSubmitting(true);
 
-    // ── Step 1: upload any new images (existing ones are already on Storage) ──
     let finalUrls: string[];
     let finalPaths: string[];
     try {
@@ -246,14 +228,24 @@ export default function CreateProductModal({
       finalPaths = uploaded.map((u) => u.path);
     } catch (err) {
       console.error("Image upload failed:", err);
-      const message = err instanceof Error ? err.message : "Image upload failed. Please try again.";
+      const message = err instanceof Error ? err.message : "Image upload failed.";
       setFormError(message);
       toast.error("Couldn't upload the images. Please try again.");
       setSubmitting(false);
-      return; // don't attempt the save without valid images
+      return;
     }
 
-    // ── Step 2: save product ──
+    // Build sizePricing — only persist fields that have actual numbers
+    const sp = form.sizePricing;
+    const sizePricing: SizePricing = {
+      sm: sp.sm !== "" && !isNaN(Number(sp.sm)) ? Number(sp.sm) : "",
+      lxl: sp.lxl !== "" && !isNaN(Number(sp.lxl)) ? Number(sp.lxl) : "",
+      xxlCustom:
+        sp.xxlCustom !== "" && !isNaN(Number(sp.xxlCustom))
+          ? Number(sp.xxlCustom)
+          : "",
+    };
+
     try {
       const payload = {
         name: form.name.trim(),
@@ -266,6 +258,7 @@ export default function CreateProductModal({
         subCategory: form.subCategory,
         imageUrls: finalUrls,
         imagePaths: finalPaths,
+        sizePricing,
         updatedAt: serverTimestamp(),
       };
 
@@ -276,7 +269,6 @@ export default function CreateProductModal({
         const sku = `${form.category.slice(0, 3).toUpperCase()}-${Date.now()
           .toString()
           .slice(-6)}`;
-
         await addDoc(collection(db, "products"), {
           ...payload,
           sku,
@@ -285,8 +277,6 @@ export default function CreateProductModal({
         toast.success(`${form.name.trim()} added to inventory`);
       }
 
-      // Clean up any images the user removed during editing — do this last,
-      // and don't let a cleanup failure block the save from being reported.
       if (removedPaths.length > 0) {
         Promise.all(
           removedPaths.map((path) =>
@@ -296,17 +286,22 @@ export default function CreateProductModal({
           )
         );
       }
-
       onClose();
     } catch (err) {
       console.error(`Failed to ${isEditMode ? "update" : "create"} product:`, err);
-      const message = err instanceof Error ? err.message : "Something went wrong while saving. Please try again.";
+      const message = err instanceof Error ? err.message : "Something went wrong.";
       setFormError(message);
-      toast.error(`Couldn't ${isEditMode ? "update" : "create"} the product. Please try again.`);
+      toast.error(`Couldn't ${isEditMode ? "update" : "create"} the product.`);
     } finally {
       setSubmitting(false);
     }
   };
+
+  // Determine which size tiers are relevant given the currently selected sizes
+  const hasSM = form.sizes.some((s) => ["S", "M"].includes(s));
+  const hasLXL = form.sizes.some((s) => ["L", "XL"].includes(s));
+  const hasXXLCustom = form.sizes.some((s) => ["XXL", "Custom"].includes(s));
+  const showSizePricing = hasSM || hasLXL || hasXXLCustom;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3 sm:px-4">
@@ -319,11 +314,7 @@ export default function CreateProductModal({
           <h2 className="font-serif text-xl text-gray-900">
             {isEditMode ? "Edit Product" : "Add Product"}
           </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 transition-colors"
-          >
+          <button type="button" onClick={onClose} className="text-gray-400 hover:text-gray-700 transition-colors">
             <X size={20} />
           </button>
         </div>
@@ -362,11 +353,7 @@ export default function CreateProductModal({
                     className="relative aspect-square rounded-lg overflow-hidden border border-gray-200"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={src}
-                      alt={`Product image ${i + 1}`}
-                      className="absolute inset-0 w-full h-full object-cover"
-                    />
+                    <img src={src} alt={`Product image ${i + 1}`} className="absolute inset-0 w-full h-full object-cover" />
                     {i === 0 && (
                       <span className="absolute top-1 left-1 text-[10px] font-medium bg-black/70 text-white px-1.5 py-0.5 rounded">
                         Cover
@@ -412,11 +399,11 @@ export default function CreateProductModal({
             />
           </div>
 
-          {/* Price + Stock */}
+          {/* Base Price + Stock */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold tracking-wide text-gray-500 mb-1.5">
-                PRICE ($)
+                BASE PRICE ($)
               </label>
               <input
                 type="number"
@@ -427,6 +414,7 @@ export default function CreateProductModal({
                 placeholder="30000"
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20 transition-all"
               />
+              <p className="text-[11px] text-gray-400 mt-1">Fallback if no size-based price set</p>
             </div>
             <div>
               <label className="block text-xs font-semibold tracking-wide text-gray-500 mb-1.5">
@@ -443,7 +431,7 @@ export default function CreateProductModal({
             </div>
           </div>
 
-          {/* Sizes + Colors (multi-select dropdowns) */}
+          {/* Sizes + Colors */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <MultiSelectDropdown
               label="SIZES"
@@ -451,9 +439,7 @@ export default function CreateProductModal({
               options={[...SIZES]}
               selected={form.sizes}
               isOpen={openDropdown === "sizes"}
-              onToggleOpen={() =>
-                setOpenDropdown((d) => (d === "sizes" ? null : "sizes"))
-              }
+              onToggleOpen={() => setOpenDropdown((d) => (d === "sizes" ? null : "sizes"))}
               onToggleValue={(v) => toggleMulti("sizes", v)}
             />
             <MultiSelectDropdown
@@ -462,14 +448,74 @@ export default function CreateProductModal({
               options={[...COLORS]}
               selected={form.colors}
               isOpen={openDropdown === "colors"}
-              onToggleOpen={() =>
-                setOpenDropdown((d) => (d === "colors" ? null : "colors"))
-              }
+              onToggleOpen={() => setOpenDropdown((d) => (d === "colors" ? null : "colors"))}
               onToggleValue={(v) => toggleMulti("colors", v)}
             />
           </div>
 
-          {/* Category + Subcategory (single-select dropdowns) */}
+          {/* Size-based pricing — only shown when relevant sizes are selected */}
+          {showSizePricing && (
+            <div className="border border-[#C9A96E]/30 rounded-lg p-4 bg-[#FAF8F3]">
+              <p className="text-xs font-semibold tracking-wide text-gray-600 mb-1">
+                SIZE-BASED PRICING
+              </p>
+              <p className="text-[11px] text-gray-400 mb-3">
+                Optional. Leave a tier blank to fall back to the base price.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {hasSM && (
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                      S / M ($)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={form.sizePricing.sm}
+                      onChange={(e) => setSizePricingField("sm", e.target.value)}
+                      placeholder="e.g. 25000"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20 transition-all bg-white"
+                    />
+                  </div>
+                )}
+                {hasLXL && (
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                      L / XL ($)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={form.sizePricing.lxl}
+                      onChange={(e) => setSizePricingField("lxl", e.target.value)}
+                      placeholder="e.g. 30000"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20 transition-all bg-white"
+                    />
+                  </div>
+                )}
+                {hasXXLCustom && (
+                  <div>
+                    <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                      XXL / Custom ($)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={form.sizePricing.xxlCustom}
+                      onChange={(e) => setSizePricingField("xxlCustom", e.target.value)}
+                      placeholder="e.g. 35000"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20 transition-all bg-white"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Category + Subcategory */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <SingleSelectDropdown
               label="CATEGORY"
@@ -477,15 +523,9 @@ export default function CreateProductModal({
               options={CATEGORIES.map((c) => ({ value: c.value, label: c.label }))}
               selected={form.category}
               isOpen={openDropdown === "category"}
-              onToggleOpen={() =>
-                setOpenDropdown((d) => (d === "category" ? null : "category"))
-              }
+              onToggleOpen={() => setOpenDropdown((d) => (d === "category" ? null : "category"))}
               onSelect={(v) =>
-                setForm((f) => ({
-                  ...f,
-                  category: v as CategoryValue,
-                  subCategory: "", // reset dependent field
-                }))
+                setForm((f) => ({ ...f, category: v as CategoryValue, subCategory: "" }))
               }
             />
             <SingleSelectDropdown
@@ -495,9 +535,7 @@ export default function CreateProductModal({
               selected={form.subCategory}
               isOpen={openDropdown === "subCategory"}
               disabled={!form.category}
-              onToggleOpen={() =>
-                setOpenDropdown((d) => (d === "subCategory" ? null : "subCategory"))
-              }
+              onToggleOpen={() => setOpenDropdown((d) => (d === "subCategory" ? null : "subCategory"))}
               onSelect={(v) => setForm((f) => ({ ...f, subCategory: v }))}
             />
           </div>
@@ -509,9 +547,7 @@ export default function CreateProductModal({
             </label>
             <textarea
               value={form.description}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, description: e.target.value }))
-              }
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               rows={3}
               placeholder="Fabric, fit, and styling details…"
               className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm resize-none focus:outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20 transition-all"
@@ -533,11 +569,7 @@ export default function CreateProductModal({
               className="px-6 py-2.5 rounded-lg text-sm font-semibold text-white bg-black hover:opacity-90 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed transition-all flex items-center gap-2"
             >
               {submitting && <Loader2 size={15} className="animate-spin" />}
-              {submitting
-                ? "Saving…"
-                : isEditMode
-                ? "Save Changes"
-                : "Save Product"}
+              {submitting ? "Saving…" : isEditMode ? "Save Changes" : "Save Product"}
             </button>
           </div>
         </form>
@@ -546,27 +578,13 @@ export default function CreateProductModal({
   );
 }
 
-/* ---------------------------------------------------------------------- */
-/*  Small reusable dropdown primitives, kept local to this file so the    */
-/*  modal stays a single self-contained component.                        */
-/* ---------------------------------------------------------------------- */
+/* ── Dropdown primitives ─────────────────────────────────────────────────── */
 
 function MultiSelectDropdown({
-  label,
-  placeholder,
-  options,
-  selected,
-  isOpen,
-  onToggleOpen,
-  onToggleValue,
+  label, placeholder, options, selected, isOpen, onToggleOpen, onToggleValue,
 }: {
-  label: string;
-  placeholder: string;
-  options: string[];
-  selected: string[];
-  isOpen: boolean;
-  onToggleOpen: () => void;
-  onToggleValue: (value: string) => void;
+  label: string; placeholder: string; options: string[]; selected: string[];
+  isOpen: boolean; onToggleOpen: () => void; onToggleValue: (value: string) => void;
 }) {
   return (
     <div data-dropdown-root className="relative">
@@ -606,23 +624,11 @@ function MultiSelectDropdown({
 }
 
 function SingleSelectDropdown({
-  label,
-  placeholder,
-  options,
-  selected,
-  isOpen,
-  disabled,
-  onToggleOpen,
-  onSelect,
+  label, placeholder, options, selected, isOpen, disabled, onToggleOpen, onSelect,
 }: {
-  label: string;
-  placeholder: string;
-  options: { value: string; label: string }[];
-  selected: string;
-  isOpen: boolean;
-  disabled?: boolean;
-  onToggleOpen: () => void;
-  onSelect: (value: string) => void;
+  label: string; placeholder: string; options: { value: string; label: string }[];
+  selected: string; isOpen: boolean; disabled?: boolean;
+  onToggleOpen: () => void; onSelect: (value: string) => void;
 }) {
   const selectedLabel = options.find((o) => o.value === selected)?.label;
   return (
@@ -651,9 +657,7 @@ function SingleSelectDropdown({
               className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-[#FAF8F3] transition-colors text-left"
             >
               {opt.label}
-              {selected === opt.value && (
-                <Check size={14} className="text-[#C9A96E]" />
-              )}
+              {selected === opt.value && <Check size={14} className="text-[#C9A96E]" />}
             </button>
           ))}
         </div>

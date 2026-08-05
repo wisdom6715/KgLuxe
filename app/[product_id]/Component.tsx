@@ -21,11 +21,14 @@ import {
 import { useParams } from "next/navigation";
 import { db, auth } from "@/lib/firebase.config";
 import { toast } from "sonner";
-import Link from "next/link";
 import CustomMeasurementFields, {
   type Measurement,
 } from "@/components/CustomMeasurementFields";
 import SizeGuideModal from "./SizeGuideModal";
+import { useDiscount } from "@/hook/useDiscount";
+import { applyDiscount, isDiscountActive } from "@/lib/discount";
+import { resolveSizePrice, type SizePricing } from "@/app/console/product/_components/type";
+import ProductReviews from "@/components/ProductReview";
 
 // ─── Firestore shape ──────────────────────────────────────────────────────────
 
@@ -41,13 +44,14 @@ interface Product {
   subCategory: string;
   sku: string;
   imageUrls: string[];
+  sizePricing?: SizePricing;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const PLACEHOLDER_IMAGE = "/placeholder-product.png";
 
-const formatNaira = (value: number) =>
+const formatPrice = (value: number) =>
   new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -56,42 +60,29 @@ const formatNaira = (value: number) =>
 
 const isCustomSize = (size: string) => size.trim().toLowerCase() === "custom";
 
-// ─── Image slider (custom — no jQuery dependency) ────────────────────────────
+// ─── Image slider ─────────────────────────────────────────────────────────────
 
 const SWIPE_THRESHOLD_PX = 50;
 
-function ProductImageSlider({
-  images,
-  altBase,
-}: {
-  images: string[];
-  altBase: string;
-}) {
+function ProductImageSlider({ images, altBase }: { images: string[]; altBase: string }) {
   const [index, setIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchDeltaX, setTouchDeltaX] = useState(0);
-
   const hasMultiple = images.length > 1;
 
-  const goTo = (next: number) => {
-    const clamped = (next + images.length) % images.length;
-    setIndex(clamped);
-  };
+  const goTo = (next: number) => setIndex((next + images.length) % images.length);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartX(e.touches[0].clientX);
     setTouchDeltaX(0);
   };
-
   const handleTouchMove = (e: React.TouchEvent) => {
     if (touchStartX === null) return;
     setTouchDeltaX(e.touches[0].clientX - touchStartX);
   };
-
   const handleTouchEnd = () => {
-    if (Math.abs(touchDeltaX) > SWIPE_THRESHOLD_PX) {
+    if (Math.abs(touchDeltaX) > SWIPE_THRESHOLD_PX)
       goTo(touchDeltaX < 0 ? index + 1 : index - 1);
-    }
     setTouchStartX(null);
     setTouchDeltaX(0);
   };
@@ -141,7 +132,6 @@ function ProductImageSlider({
               <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
-
           <div className="absolute bottom-3 sm:bottom-4 inset-x-0 flex items-center justify-center gap-1.5">
             {images.map((_, i) => (
               <button
@@ -163,14 +153,8 @@ function ProductImageSlider({
 
 const swatchColor = (color: string) => {
   const known: Record<string, string> = {
-    black: "#111111",
-    white: "#ffffff",
-    cream: "#F5F0E6",
-    beige: "#E8DCC8",
-    navy: "#1B2A4A",
-    tan: "#D2B48C",
-    olive: "#708238",
-    burgundy: "#6D1B2C",
+    black: "#111111", white: "#ffffff", cream: "#F5F0E6", beige: "#E8DCC8",
+    navy: "#1B2A4A", tan: "#D2B48C", olive: "#708238", burgundy: "#6D1B2C",
   };
   return known[color.toLowerCase()] ?? color.toLowerCase();
 };
@@ -195,9 +179,7 @@ function ProductSkeleton() {
             <div className="h-3 bg-gray-200 rounded w-4/6" />
           </div>
           <div className="grid grid-cols-4 gap-2 sm:gap-3 mt-4">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-12 bg-gray-200 rounded" />
-            ))}
+            {[...Array(4)].map((_, i) => <div key={i} className="h-12 bg-gray-200 rounded" />)}
           </div>
           <div className="h-12 bg-gray-200 rounded w-40 mt-2" />
           <div className="h-12 bg-gray-900 rounded mt-4" />
@@ -205,6 +187,28 @@ function ProductSkeleton() {
         </div>
       </div>
     </main>
+  );
+}
+
+// ─── Price display ─────────────────────────────────────────────────────────────
+
+function PriceDisplay({
+  basePrice,
+  discountedPrice,
+  hasDiscount,
+}: {
+  basePrice: number;
+  discountedPrice: number;
+  hasDiscount: boolean;
+}) {
+  if (!hasDiscount) {
+    return <p className="text-lg text-neutral-700 mb-6">{formatPrice(basePrice)}</p>;
+  }
+  return (
+    <div className="flex items-baseline gap-3 mb-6">
+      <p className="text-lg text-neutral-900 font-semibold">{formatPrice(discountedPrice)}</p>
+      <p className="text-base text-neutral-400 line-through">{formatPrice(basePrice)}</p>
+    </div>
   );
 }
 
@@ -228,6 +232,8 @@ export default function Component() {
   const [addStatus, setAddStatus] = useState<"idle" | "adding" | "added">("idle");
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
 
+  const { discount } = useDiscount();
+  const discountLive = isDiscountActive(discount);
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => {
@@ -244,14 +250,10 @@ export default function Component() {
 
   useEffect(() => {
     if (!productId) return;
-
-    const fetch = async () => {
+    const fetchProduct = async () => {
       try {
         const snap = await getDoc(doc(db, "products", productId));
-        if (!snap.exists()) {
-          setNotFound(true);
-          return;
-        }
+        if (!snap.exists()) { setNotFound(true); return; }
         const data = { id: snap.id, ...snap.data() } as Product;
         setProduct(data);
         setSelectedSize(data.sizes?.[0] ?? "");
@@ -263,19 +265,14 @@ export default function Component() {
         setLoading(false);
       }
     };
-
-    fetch();
+    fetchProduct();
   }, [productId]);
 
-  // Reset custom measurements whenever the selection moves away from "Custom"
   useEffect(() => {
-    if (!isCustomSize(selectedSize)) {
-      setMeasurements([]);
-    }
+    if (!isCustomSize(selectedSize)) setMeasurements([]);
   }, [selectedSize]);
 
   if (loading) return <ProductSkeleton />;
-
   if (notFound || !product) {
     return (
       <main className="bg-white px-4 sm:px-8 md:px-16 xl:px-40 py-24 sm:py-32 text-center text-neutral-500 text-sm">
@@ -289,44 +286,32 @@ export default function Component() {
   const gallery = product.imageUrls?.length ? product.imageUrls : [PLACEHOLDER_IMAGE];
   const customSelected = isCustomSize(selectedSize);
 
+  // ── Pricing calculations ──
+  // Resolve the size-based price for the currently selected size
+  const sizeBasePrice = resolveSizePrice(product, selectedSize);
+  // Apply global discount if active
+  const effectivePrice = applyDiscount(sizeBasePrice, discount);
+  const priceChanged = discountLive && effectivePrice !== sizeBasePrice;
+
   const handleAddToCart = async () => {
-    if (!user) {
-      toast.error("Please log in to add items to your cart.");
-      return;
-    }
-
-    if (product.sizes.length > 0 && !selectedSize) {
-      toast.error("Please select a size.");
-      return;
-    }
-
+    if (!user) { toast.error("Please log in to add items to your cart."); return; }
+    if (product.sizes.length > 0 && !selectedSize) { toast.error("Please select a size."); return; }
     if (customSelected) {
       if (measurements.length === 0) {
         toast.error("Please add at least one measurement (in inches).");
         return;
       }
-      const hasEmpty = measurements.some((m) => !m.value.trim());
-      if (hasEmpty) {
+      if (measurements.some((m) => !m.value.trim())) {
         toast.error("Please enter a value for each measurement you've added.");
         return;
       }
     }
-
-    if (product.colors.length > 0 && !selectedColor) {
-      toast.error("Please select a color.");
-      return;
-    }
-    if (!user) {
-      toast.error("Please wait a moment and try again.");
-      return;
-    }
+    if (product.colors.length > 0 && !selectedColor) { toast.error("Please select a color."); return; }
 
     setAddStatus("adding");
     try {
       const cartRef = collection(db, "users", user.uid, "add-to-cart");
 
-      // Custom sizes carry per-order measurements, so never merge these into
-      // an existing line — each custom request should be its own cart entry.
       if (!customSelected) {
         const dupQuery = query(
           cartRef,
@@ -335,12 +320,15 @@ export default function Component() {
           where("color", "==", selectedColor || null)
         );
         const dupSnap = await getDocs(dupQuery);
-
         if (!dupSnap.empty) {
           const existing = dupSnap.docs[0];
           const newQty = existing.data().quantity + quantity;
           await updateDoc(doc(cartRef, existing.id), {
             quantity: Math.min(newQty, product.stock),
+            // refresh price in case discount changed
+            price: effectivePrice,
+            originalPrice: sizeBasePrice,
+            discountApplied: priceChanged ? discount!.percentage : null,
           });
           setAddStatus("added");
           toast.success("Added to cart");
@@ -352,7 +340,10 @@ export default function Component() {
       await addDoc(cartRef, {
         product_id: product.id,
         name: product.name,
-        price: product.price,
+        // Always store the effective (after-discount) price for checkout
+        price: effectivePrice,
+        originalPrice: sizeBasePrice,
+        discountApplied: priceChanged ? discount!.percentage : null,
         imageUrl: gallery[0],
         stock: product.stock,
         size: selectedSize || null,
@@ -375,11 +366,12 @@ export default function Component() {
   return (
     <main className="bg-white px-4 sm:px-8 md:px-16 lg:px-24 xl:px-40 text-neutral-900 mt-6 sm:mt-10">
       <div className="grid lg:grid-cols-[1fr_480px]">
-
         {/* LEFT: image slider */}
         <div className="flex flex-col gap-2">
           <ProductImageSlider key={productId} images={gallery} altBase={product.name} />
+          <ProductReviews product_id={productId} />
         </div>
+        
         <SizeGuideModal isOpen={sizeGuideOpen} onClose={() => setSizeGuideOpen(false)} />
 
         {/* RIGHT: product info */}
@@ -389,13 +381,7 @@ export default function Component() {
             {breadcrumb.map((step, i) => (
               <span key={step}>
                 {i > 0 && " / "}
-                <span
-                  className={
-                    i === breadcrumb.length - 1
-                      ? "text-neutral-900 font-medium"
-                      : ""
-                  }
-                >
+                <span className={i === breadcrumb.length - 1 ? "text-neutral-900 font-medium" : ""}>
                   {step}
                 </span>
               </span>
@@ -404,9 +390,20 @@ export default function Component() {
 
           <h1 className="font-serif text-3xl sm:text-4xl mb-3">{product.name}</h1>
 
-          <p className="text-lg text-neutral-700 mb-6">
-            {formatNaira(product.price)}
-          </p>
+          {/* Price — updates reactively when size changes or discount is active */}
+          <PriceDisplay
+            basePrice={sizeBasePrice}
+            discountedPrice={effectivePrice}
+            hasDiscount={priceChanged}
+          />
+
+          {/* Active discount badge */}
+          {priceChanged && discount && (
+            <div className="inline-flex items-center gap-1.5 mb-4 px-2.5 py-1 bg-neutral-900 text-white text-[11px] font-semibold tracking-wide rounded-full">
+              <span>🏷</span>
+              {discount.percentage}% OFF
+            </div>
+          )}
 
           <div className="h-px w-12 bg-neutral-300 mb-6" />
 
@@ -418,9 +415,7 @@ export default function Component() {
           {product.sizes.length > 0 && (
             <>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs tracking-[0.15em] uppercase font-medium">
-                  Size
-                </span>
+                <span className="text-xs tracking-[0.15em] uppercase font-medium">Size</span>
                 <button
                   type="button"
                   onClick={() => setSizeGuideOpen(true)}
@@ -430,19 +425,24 @@ export default function Component() {
                 </button>
               </div>
               <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-4">
-                {product.sizes.map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setSelectedSize(size)}
-                    className={`border py-3 text-sm transition-colors ${
-                      selectedSize === size
-                        ? "bg-neutral-900 text-white border-neutral-900"
-                        : "border-neutral-300 text-neutral-900 hover:border-neutral-900"
-                    }`}
-                  >
-                    {size}
-                  </button>
-                ))}
+                {product.sizes.map((size) => {
+                  // Show per-size price hint if the tier price differs from base
+                  const tierPrice = resolveSizePrice(product, size);
+                  const showPriceHint = tierPrice !== product.price;
+                  return (
+                    <button
+                      key={size}
+                      onClick={() => setSelectedSize(size)}
+                      className={`border py-2 text-sm transition-colors flex flex-col items-center ${
+                        selectedSize === size
+                          ? "bg-neutral-900 text-white border-neutral-900"
+                          : "border-neutral-300 text-neutral-900 hover:border-neutral-900"
+                      }`}
+                    >
+                      <span>{size}</span>
+                    </button>
+                  );
+                })}
               </div>
 
               {/* CUSTOM SIZE MEASUREMENTS */}
@@ -452,13 +452,9 @@ export default function Component() {
                     Custom Measurements <span className="text-red-500">*</span>
                   </p>
                   <p className="text-xs text-neutral-500 mb-4">
-                    Choose a measurement, enter its size in inches, then add another
-                    if needed. At least one is required.
+                    Choose a measurement, enter its size in inches, then add another if needed. At least one is required.
                   </p>
-                  <CustomMeasurementFields
-                    measurements={measurements}
-                    onChange={setMeasurements}
-                  />
+                  <CustomMeasurementFields measurements={measurements} onChange={setMeasurements} />
                 </div>
               )}
             </>
@@ -468,13 +464,9 @@ export default function Component() {
           {product.colors.length > 0 && (
             <>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs tracking-[0.15em] uppercase font-medium">
-                  Color
-                </span>
+                <span className="text-xs tracking-[0.15em] uppercase font-medium">Color</span>
                 {selectedColor && (
-                  <span className="text-xs text-neutral-500 capitalize">
-                    {selectedColor}
-                  </span>
+                  <span className="text-xs text-neutral-500 capitalize">{selectedColor}</span>
                 )}
               </div>
               <div className="flex flex-wrap gap-3 mb-8">
@@ -484,7 +476,7 @@ export default function Component() {
                     onClick={() => setSelectedColor(color)}
                     aria-label={color}
                     title={color}
-                    className={` rounded-full  border-2 transition-all ${
+                    className={`rounded-full border-2 transition-all ${
                       selectedColor === color
                         ? "border-neutral-900 scale-105"
                         : "border-neutral-200 hover:border-neutral-400"
@@ -531,6 +523,21 @@ export default function Component() {
             </button>
           </div>
 
+          {/* Total price summary */}
+          {quantity > 1 && (
+            <p className="text-sm text-neutral-500 mb-4">
+              Total:{" "}
+              <span className="font-semibold text-neutral-900">
+                {formatPrice(effectivePrice * quantity)}
+              </span>
+              {priceChanged && (
+                <span className="ml-2 text-neutral-400 line-through text-xs">
+                  {formatPrice(sizeBasePrice * quantity)}
+                </span>
+              )}
+            </p>
+          )}
+
           {/* CTAs */}
           {soldOut ? (
             <button
@@ -572,25 +579,17 @@ export default function Component() {
               <div key={section.key} className="border-b border-neutral-200">
                 <button
                   onClick={() =>
-                    setOpenSection((current) =>
-                      current === section.key ? null : section.key
-                    )
+                    setOpenSection((current) => (current === section.key ? null : section.key))
                   }
                   className="w-full flex items-center justify-between py-4 text-xs tracking-[0.15em] uppercase font-medium"
                 >
                   {section.label}
-                  <span
-                    className={`transition-transform inline-block ${
-                      openSection === section.key ? "rotate-180" : ""
-                    }`}
-                  >
+                  <span className={`transition-transform inline-block ${openSection === section.key ? "rotate-180" : ""}`}>
                     ⌄
                   </span>
                 </button>
                 {openSection === section.key && (
-                  <p className="text-sm text-neutral-600 leading-relaxed pb-4">
-                    {section.body}
-                  </p>
+                  <p className="text-sm text-neutral-600 leading-relaxed pb-4">{section.body}</p>
                 )}
               </div>
             ))}

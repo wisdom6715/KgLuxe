@@ -30,7 +30,7 @@ export const SUBCATEGORIES: Record<CategoryValue, string[]> = {
     "formal-wear",
     "casual-luxe",
     "accessories",
-    "father-son"
+    "father-son",
   ],
   fabrics: [
     "ankara",
@@ -70,6 +70,8 @@ export const COLORS = [
 export const LOW_STOCK_THRESHOLD = 15;
 export const MAX_PRODUCT_IMAGES = 5;
 
+// ─── Stock ────────────────────────────────────────────────────────────────────
+
 export type StockStatus = "in-stock" | "low-stock" | "out-of-stock";
 
 export function getStockStatus(stock: number): StockStatus {
@@ -77,6 +79,61 @@ export function getStockStatus(stock: number): StockStatus {
   if (stock < LOW_STOCK_THRESHOLD) return "low-stock";
   return "in-stock";
 }
+
+// ─── Size-based pricing ───────────────────────────────────────────────────────
+
+export interface SizePricing {
+  sm: number | "";      // SM, M
+  lxl: number | "";     // L, XL
+  xxlCustom: number | ""; // XXL, CUSTOM
+}
+
+export const EMPTY_SIZE_PRICING: SizePricing = {
+  sm: "",
+  lxl: "",
+  xxlCustom: "",
+};
+
+export function resolveSizePrice(
+  product: Pick<Product, "price" | "sizePricing">,
+  size: string
+): number {
+  const sp = product.sizePricing;
+  if (!sp) return product.price;
+  const s = size.toUpperCase();
+  if ((s === "SM" || s === "M") && sp.sm !== "") return Number(sp.sm);
+  if ((s === "L" || s === "XL") && sp.lxl !== "") return Number(sp.lxl);
+  if ((s === "XXL" || s === "CUSTOM") && sp.xxlCustom !== "") return Number(sp.xxlCustom);
+  return product.price;
+}
+
+// ─── Discount ─────────────────────────────────────────────────────────────────
+
+export interface Discount {
+  id: string;
+  percentage: number; // 1–100
+  startDate: string;  // "YYYY-MM-DD"
+  endDate: string;    // "YYYY-MM-DD"
+  active: boolean;
+}
+
+export const DISCOUNT_DOC_ID = "current";
+
+export function isDiscountActive(d: Discount | null | undefined): boolean {
+  if (!d || !d.active) return false;
+  const now = new Date();
+  const start = new Date(d.startDate);
+  const end = new Date(d.endDate);
+  end.setHours(23, 59, 59, 999);
+  return now >= start && now <= end;
+}
+
+export function applyDiscount(price: number, d: Discount | null | undefined): number {
+  if (!d || !isDiscountActive(d)) return price;
+  return parseFloat((price * (1 - d.percentage / 100)).toFixed(2));
+}
+
+// ─── Product ──────────────────────────────────────────────────────────────────
 
 export interface Product {
   id: string;
@@ -93,21 +150,24 @@ export interface Product {
   imageUrls: string[];
   /** Firebase Storage paths, parallel to imageUrls — needed to delete files later. */
   imagePaths: string[];
+  /** Optional per-tier pricing. Absent on older products — falls back to `price`. */
+  sizePricing?: SizePricing;
   createdAt?: Timestamp;
   updatedAt?: Timestamp;
 }
 
-// Shape used while building the create-product form, before it becomes a
-// Firestore document (no id/sku/imagePaths yet — those are generated on submit).
+// ─── Form state ───────────────────────────────────────────────────────────────
+
 export interface ProductFormState {
   name: string;
   description: string;
-  price: string; // kept as string while editing, parsed to number on submit
+  price: string;
   stock: string;
   sizes: string[];
   colors: string[];
   category: CategoryValue | "";
   subCategory: string;
+  sizePricing: SizePricing;
 }
 
 export const EMPTY_PRODUCT_FORM: ProductFormState = {
@@ -119,4 +179,25 @@ export const EMPTY_PRODUCT_FORM: ProductFormState = {
   colors: [],
   category: "",
   subCategory: "",
+  sizePricing: EMPTY_SIZE_PRICING,
 };
+
+// ─── Cart item ────────────────────────────────────────────────────────────────
+
+export interface CartItem {
+  product_id: string;
+  name: string;
+  /** Effective price at add-time (after size tier + discount). Used for checkout. */
+  price: number;
+  /** Pre-discount, size-resolved price — for receipt display. */
+  originalPrice: number;
+  /** Discount % applied at add-time, or null if none was active. */
+  discountApplied: number | null;
+  imageUrl: string;
+  stock: number;
+  size: string | null;
+  color: string | null;
+  sizeMeasurements: Array<{ label: string; value: string }> | null;
+  quantity: number;
+  createdAt?: Timestamp;
+}
