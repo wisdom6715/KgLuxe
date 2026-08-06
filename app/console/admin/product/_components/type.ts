@@ -59,6 +59,7 @@ export const COLORS = [
   "Yellow",
   "Lavender",
   "lemonchiffon",
+  "ivory",
   "White",
   "Red",
   "Green",
