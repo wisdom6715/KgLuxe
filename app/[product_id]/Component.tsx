@@ -27,7 +27,7 @@ import CustomMeasurementFields, {
 import SizeGuideModal from "./SizeGuideModal";
 import { useDiscount } from "@/hook/useDiscount";
 import { applyDiscount, isDiscountActive } from "@/lib/discount";
-import { resolveSizePrice, type SizePricing } from "@/app/console/product/_components/type";
+import { resolveSizePrice, type SizePricing } from "@/app/console/admin/product/_components/type";
 import ProductReviews from "@/components/ProductReview";
 
 // ─── Firestore shape ──────────────────────────────────────────────────────────
@@ -363,6 +363,7 @@ export default function Component() {
     }
   };
 
+  console.log("product", product.colors);
   return (
     <main className="bg-white px-4 sm:px-8 md:px-16 lg:px-24 xl:px-40 text-neutral-900 mt-6 sm:mt-10">
       <div className="grid lg:grid-cols-[1fr_480px]">

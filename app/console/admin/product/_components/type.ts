@@ -53,6 +53,12 @@ export type SizeValue = (typeof SIZES)[number];
 
 export const COLORS = [
   "Black",
+  "Orange",
+  "Pink",
+  "Purple",
+  "Yellow",
+  "Lavender",
+  "lemonchiffon",
   "White",
   "Red",
   "Green",

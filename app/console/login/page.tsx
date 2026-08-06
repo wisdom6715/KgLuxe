@@ -53,7 +53,7 @@ export default function LoginPage() {
         );
         await signInWithEmailAndPassword(auth, form.email, form.password);
         toast.success("Welcome back! Redirecting…");
-        router.push("/");
+        router.push("/console/admin/product");
     } catch (err) {
         const message = friendlyError((err as AuthError).code ?? "");
         setError(message);
@@ -71,7 +71,7 @@ export default function LoginPage() {
         const result = await signInWithPopup(auth, new GoogleAuthProvider());
         const firstName = result.user.displayName?.split(" ")[0] || "there";
         toast.success(`Welcome back, ${firstName}! 👋`);
-        router.push("/");
+        router.push("/console/admin/product");
     } catch (err) {
         const message = friendlyError((err as AuthError).code ?? "");
         setError(message);
@@ -160,7 +160,7 @@ export default function LoginPage() {
               />
               <span className="text-sm text-gray-600">Remember me</span>
             </label>
-            <Link href="/reset-password" className="text-sm text-[#C9A96E] hover:text-[#A07840] font-medium transition-colors">
+            <Link href="/console/reset-password" className="text-sm text-[#C9A96E] hover:text-[#A07840] font-medium transition-colors">
               Forgot Password?
             </Link>
           </div>

@@ -31,7 +31,7 @@ export default function AdminSidebar() {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      router.push("/login");
+      router.push("/console/login");
     } catch (err) {
       console.error("Sign out failed:", err);
       toast.error("Couldn't sign out. Please try again.");

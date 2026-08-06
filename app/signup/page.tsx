@@ -177,7 +177,7 @@ export default function SignupPage() {
               <rect x="2"  y="11" width="7" height="7" rx="1" />
             </svg>
           </div>
-          <span className="text-lg font-bold text-gray-900 tracking-wide">KgLuxe</span>
+          <span className="text-lg font-bold text-gray-900 tracking-wide">KgLuxee</span>
         </div>
 
         <h1 className="text-2xl font-bold text-gray-900 mb-1">Create an account</h1>
