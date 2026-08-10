@@ -82,8 +82,6 @@ function SaveCancelBar({ onSave, onCancel, saving }: { onSave: () => void; onCan
 export default function AccountPage() {
   const { user, loading } = useCurrentUser();
 
-  console.log("yser data: ", user)
-
   // Edit states
   const [editingBasic,    setEditingBasic]    = useState(false);
   const [editingContact,  setEditingContact]  = useState(false);

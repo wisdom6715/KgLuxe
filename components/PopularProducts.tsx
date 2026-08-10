@@ -253,7 +253,7 @@ export default function PopularProducts() {
     return () => observer.disconnect();
   }, [loadMore]);
 
-  const categories = ["All", ...allCategories];
+    const categories = ["All", ...allCategories];
 
   return (
     <section className="py-8 sm:py-10 md:py-12 border-t border-gray-100 px-4 sm:px-6 md:px-0">
