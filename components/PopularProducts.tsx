@@ -1,7 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { collection, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import { useEffect, useState, useCallback, useRef } from "react";
+import {
+  collection,
+  query,
+  orderBy,
+  limit,
+  startAfter,
+  where,
+  getDocs,
+  QueryConstraint,
+  QueryDocumentSnapshot,
+  DocumentData,
+} from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase.config";
 import { useCart } from "@/hook/useAddToCart";
@@ -15,10 +26,11 @@ interface Product {
   category: string;
   subCategory?: string;
   badge?: string;
-  stock?: number; // optional until it's added to every product doc
+  stock?: number;
 }
 
 const PLACEHOLDER_IMAGE = "/placeholder-product.png";
+const PAGE_SIZE = 10;
 
 const formatNaira = (value: number) =>
   new Intl.NumberFormat("en-NG", {
@@ -132,40 +144,116 @@ function SkeletonCard() {
 export default function PopularProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [activeTab, setActiveTab] = useState("All");
+  const [allCategories, setAllCategories] = useState<string[]>([]);
 
-  // One shared listener each for the whole grid — not one per card.
+  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+
   const { addToCart, isAdding } = useCart();
   const { isWishlisted, toggleWishlist, isMutating } = useWishlist();
 
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  // Guards against the observer firing a second fetch while one is already in flight
+  const fetchingRef = useRef(false);
+
+  // Categories loaded once, independent of the current filtered/paginated list,
+  // so the tab bar doesn't flicker as more products stream in.
   useEffect(() => {
-    const q = query(collection(db, "products"), orderBy("createdAt", "desc"), limit(10));
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const items = snapshot.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        })) as Product[];
-        setProducts(items);
-        setLoading(false);
-      },
-      (err) => {
-        console.error("Failed to load products:", err);
-        setLoading(false);
+    async function loadCategories() {
+      try {
+        const snap = await getDocs(collection(db, "products"));
+        const cats = Array.from(
+          new Set(snap.docs.map((d) => (d.data() as Product).category).filter(Boolean))
+        );
+        setAllCategories(cats);
+      } catch (err) {
+        console.error("Failed to load categories:", err);
       }
-    );
-
-    return () => unsubscribe();
+    }
+    loadCategories();
   }, []);
 
-  const categories = ["All", ...Array.from(new Set(products.map((p) => p.category)))];
+  const fetchBatch = useCallback(
+    async (tab: string, cursor: QueryDocumentSnapshot<DocumentData> | null) => {
+      const constraints: QueryConstraint[] = [];
+      if (tab !== "All") {
+        constraints.push(where("category", "==", tab));
+      }
+      constraints.push(orderBy("createdAt", "desc"));
+      if (cursor) constraints.push(startAfter(cursor));
+      constraints.push(limit(PAGE_SIZE));
 
-  const filtered =
-    activeTab === "All"
-      ? products
-      : products.filter((p) => p.category.toLowerCase() === activeTab.toLowerCase());
+      const q = query(collection(db, "products"), ...constraints);
+      const snap = await getDocs(q);
+
+      const items = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Product[];
+      const newLastDoc = snap.docs[snap.docs.length - 1] ?? null;
+
+      return { items, newLastDoc, more: snap.docs.length === PAGE_SIZE };
+    },
+    []
+  );
+
+  // Reset and load the first batch whenever the tab changes.
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setProducts([]);
+    setLastDoc(null);
+    setHasMore(true);
+
+    fetchBatch(activeTab, null)
+      .then(({ items, newLastDoc, more }) => {
+        if (cancelled) return;
+        setProducts(items);
+        setLastDoc(newLastDoc);
+        setHasMore(more);
+      })
+      .catch((err) => console.error("Failed to load products:", err))
+      .finally(() => !cancelled && setLoading(false));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, fetchBatch]);
+
+  const loadMore = useCallback(async () => {
+    if (fetchingRef.current || !hasMore || loading) return;
+    fetchingRef.current = true;
+    setLoadingMore(true);
+    try {
+      const { items, newLastDoc, more } = await fetchBatch(activeTab, lastDoc);
+      // Append — never replace what's already on screen.
+      setProducts((prev) => [...prev, ...items]);
+      setLastDoc(newLastDoc);
+      setHasMore(more);
+    } catch (err) {
+      console.error("Failed to load more products:", err);
+    } finally {
+      fetchingRef.current = false;
+      setLoadingMore(false);
+    }
+  }, [activeTab, lastDoc, hasMore, loading, fetchBatch]);
+
+  // Auto-load the next batch when the sentinel div scrolls into view.
+  useEffect(() => {
+    const node = sentinelRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) loadMore();
+      },
+      { rootMargin: "400px" } // start fetching before the user hits the very bottom
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [loadMore]);
+
+  const categories = ["All", ...allCategories];
 
   return (
     <section className="py-8 sm:py-10 md:py-12 border-t border-gray-100 px-4 sm:px-6 md:px-0">
@@ -196,36 +284,61 @@ export default function PopularProducts() {
             <SkeletonCard key={i} />
           ))}
         </div>
-      ) : filtered.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
-          {filtered.map((product) => (
-            <ProductCard
-              key={product.id}
-              product={product}
-              wishlisted={isWishlisted(product.id)}
-              wishlistBusy={isMutating(product.id)}
-              addBusy={isAdding(product.id)}
-              onToggleWishlist={() =>
-                toggleWishlist({
-                  id: product.id,
-                  name: product.name,
-                  price: product.price,
-                  imageUrl: product.imageUrls?.[0] ?? PLACEHOLDER_IMAGE,
-                })
-              }
-              onQuickAdd={() =>
-                addToCart({
-                  id: product.id,
-                  name: product.name,
-                  price: product.price,
-                  imageUrl: product.imageUrls?.[0] ?? PLACEHOLDER_IMAGE,
-                  stock: product.stock,
-                  quantity: 1,
-                })
-              }
-            />
-          ))}
-        </div>
+      ) : products.length > 0 ? (
+        <>
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5 md:gap-6">
+            {products.map((product) => (
+              <ProductCard
+                key={product.id}
+                product={product}
+                wishlisted={isWishlisted(product.id)}
+                wishlistBusy={isMutating(product.id)}
+                addBusy={isAdding(product.id)}
+                onToggleWishlist={() =>
+                  toggleWishlist({
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    imageUrl: product.imageUrls?.[0] ?? PLACEHOLDER_IMAGE,
+                  })
+                }
+                onQuickAdd={() =>
+                  addToCart({
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    imageUrl: product.imageUrls?.[0] ?? PLACEHOLDER_IMAGE,
+                    stock: product.stock,
+                    quantity: 1,
+                  })
+                }
+              />
+            ))}
+
+            {loadingMore &&
+              Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={`more-${i}`} />)}
+          </div>
+
+          {/* Sentinel: triggers loadMore() when scrolled into view */}
+          {hasMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
+
+          {hasMore && !loadingMore && (
+            <div className="flex justify-center mt-6">
+              <button
+                onClick={loadMore}
+                className="px-6 py-2.5 rounded-full border border-gray-300 text-xs font-medium tracking-wide text-gray-600 hover:border-dark-brown hover:text-dark-brown transition-colors"
+              >
+                Load more
+              </button>
+            </div>
+          )}
+
+          {!hasMore && products.length > PAGE_SIZE && (
+            <p className="text-center text-[11px] text-text-muted mt-8">
+              You've reached the end
+            </p>
+          )}
+        </>
       ) : (
         <div className="py-16 sm:py-20 text-center text-text-muted text-sm">
           No products in this category yet.

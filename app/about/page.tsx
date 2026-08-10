@@ -219,7 +219,7 @@ export default function AboutPage() {
             <div data-fade className="order-1 lg:order-2 relative">
               <div className="relative w-full aspect-[4/5] overflow-hidden bg-[#efeee9]">
                 <Image
-                  src="/images/women-welcome.jpg"
+                  src="/images/about1.jpg"
                   alt="A woman in a cream draped dress standing in a minimalist gallery space"
                   fill
                   className="object-cover"
@@ -293,7 +293,7 @@ export default function AboutPage() {
             <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
               <div className="relative w-full aspect-[4/5] sm:aspect-[3/4] lg:aspect-auto lg:h-[520px] overflow-hidden bg-neutral-800 order-1">
                 <Image
-                  src="/images/wedding.jpg"
+                  src="/images/about2.jpg"
                   alt="A black satin slip dress hanging on a rail"
                   fill
                   className="object-cover"

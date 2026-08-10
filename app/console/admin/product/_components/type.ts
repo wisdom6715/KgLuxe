@@ -60,6 +60,8 @@ export const COLORS = [
   "Lavender",
   "lemonchiffon",
   "ivory",
+  "chocolate",
+  "khaki",
   "White",
   "Red",
   "Green",

@@ -30,8 +30,6 @@ import { applyDiscount, isDiscountActive } from "@/lib/discount";
 import { resolveSizePrice, type SizePricing } from "@/app/console/admin/product/_components/type";
 import ProductReviews from "@/components/ProductReview";
 
-// ─── Firestore shape ──────────────────────────────────────────────────────────
-
 interface Product {
   id: string;
   name: string;
@@ -47,8 +45,6 @@ interface Product {
   sizePricing?: SizePricing;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const PLACEHOLDER_IMAGE = "/placeholder-product.png";
 
 const formatPrice = (value: number) =>
@@ -59,8 +55,6 @@ const formatPrice = (value: number) =>
   }).format(value);
 
 const isCustomSize = (size: string) => size.trim().toLowerCase() === "custom";
-
-// ─── Image slider ─────────────────────────────────────────────────────────────
 
 const SWIPE_THRESHOLD_PX = 50;
 
@@ -159,8 +153,6 @@ const swatchColor = (color: string) => {
   return known[color.toLowerCase()] ?? color.toLowerCase();
 };
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-
 function ProductSkeleton() {
   return (
     <main className="bg-white px-4 sm:px-8 md:px-16 lg:px-24 xl:px-40 text-neutral-900">
@@ -190,8 +182,6 @@ function ProductSkeleton() {
   );
 }
 
-// ─── Price display ─────────────────────────────────────────────────────────────
-
 function PriceDisplay({
   basePrice,
   discountedPrice,
@@ -211,8 +201,6 @@ function PriceDisplay({
     </div>
   );
 }
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function Component() {
   const params = useParams();
@@ -286,10 +274,7 @@ export default function Component() {
   const gallery = product.imageUrls?.length ? product.imageUrls : [PLACEHOLDER_IMAGE];
   const customSelected = isCustomSize(selectedSize);
 
-  // ── Pricing calculations ──
-  // Resolve the size-based price for the currently selected size
   const sizeBasePrice = resolveSizePrice(product, selectedSize);
-  // Apply global discount if active
   const effectivePrice = applyDiscount(sizeBasePrice, discount);
   const priceChanged = discountLive && effectivePrice !== sizeBasePrice;
 
@@ -325,7 +310,6 @@ export default function Component() {
           const newQty = existing.data().quantity + quantity;
           await updateDoc(doc(cartRef, existing.id), {
             quantity: Math.min(newQty, product.stock),
-            // refresh price in case discount changed
             price: effectivePrice,
             originalPrice: sizeBasePrice,
             discountApplied: priceChanged ? discount!.percentage : null,
@@ -340,7 +324,6 @@ export default function Component() {
       await addDoc(cartRef, {
         product_id: product.id,
         name: product.name,
-        // Always store the effective (after-discount) price for checkout
         price: effectivePrice,
         originalPrice: sizeBasePrice,
         discountApplied: priceChanged ? discount!.percentage : null,
@@ -363,16 +346,18 @@ export default function Component() {
     }
   };
 
-  console.log("product", product.colors);
   return (
     <main className="bg-white px-4 sm:px-8 md:px-16 lg:px-24 xl:px-40 text-neutral-900 mt-6 sm:mt-10">
       <div className="grid lg:grid-cols-[1fr_480px]">
-        {/* LEFT: image slider */}
+        {/* LEFT: image slider — on desktop, reviews sit here below the image */}
         <div className="flex flex-col gap-2">
           <ProductImageSlider key={productId} images={gallery} altBase={product.name} />
-          <ProductReviews product_id={productId} />
+          {/* Desktop-only reviews (below image, left column) */}
+          <div className="hidden lg:block">
+            <ProductReviews product_id={productId} />
+          </div>
         </div>
-        
+
         <SizeGuideModal isOpen={sizeGuideOpen} onClose={() => setSizeGuideOpen(false)} />
 
         {/* RIGHT: product info */}
@@ -391,14 +376,12 @@ export default function Component() {
 
           <h1 className="font-serif text-3xl sm:text-4xl mb-3">{product.name}</h1>
 
-          {/* Price — updates reactively when size changes or discount is active */}
           <PriceDisplay
             basePrice={sizeBasePrice}
             discountedPrice={effectivePrice}
             hasDiscount={priceChanged}
           />
 
-          {/* Active discount badge */}
           {priceChanged && discount && (
             <div className="inline-flex items-center gap-1.5 mb-4 px-2.5 py-1 bg-neutral-900 text-white text-[11px] font-semibold tracking-wide rounded-full">
               <span>🏷</span>
@@ -427,7 +410,6 @@ export default function Component() {
               </div>
               <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-4">
                 {product.sizes.map((size) => {
-                  // Show per-size price hint if the tier price differs from base
                   const tierPrice = resolveSizePrice(product, size);
                   const showPriceHint = tierPrice !== product.price;
                   return (
@@ -446,7 +428,6 @@ export default function Component() {
                 })}
               </div>
 
-              {/* CUSTOM SIZE MEASUREMENTS */}
               {customSelected && (
                 <div className="mb-8 border border-neutral-200 rounded-md p-4">
                   <p className="text-xs tracking-[0.15em] uppercase font-medium mb-2">
@@ -524,7 +505,6 @@ export default function Component() {
             </button>
           </div>
 
-          {/* Total price summary */}
           {quantity > 1 && (
             <p className="text-sm text-neutral-500 mb-4">
               Total:{" "}
@@ -596,6 +576,11 @@ export default function Component() {
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Mobile/tablet-only reviews — rendered below the entire product grid */}
+      <div className="lg:hidden mt-4 border-t border-neutral-200 pt-8">
+        <ProductReviews product_id={productId} />
       </div>
     </main>
   );
