@@ -17,6 +17,7 @@ import {
   SUBCATEGORIES,
   SIZES,
   COLORS,
+  getColorHex,
   EMPTY_PRODUCT_FORM,
   EMPTY_SIZE_PRICING,
   MAX_PRODUCT_IMAGES,
@@ -450,6 +451,7 @@ export default function CreateProductModal({
               isOpen={openDropdown === "colors"}
               onToggleOpen={() => setOpenDropdown((d) => (d === "colors" ? null : "colors"))}
               onToggleValue={(v) => toggleMulti("colors", v)}
+              getSwatch={getColorHex}   // ← add
             />
           </div>
 
@@ -581,10 +583,11 @@ export default function CreateProductModal({
 /* ── Dropdown primitives ─────────────────────────────────────────────────── */
 
 function MultiSelectDropdown({
-  label, placeholder, options, selected, isOpen, onToggleOpen, onToggleValue,
+  label, placeholder, options, selected, isOpen, onToggleOpen, onToggleValue, getSwatch,
 }: {
   label: string; placeholder: string; options: string[]; selected: string[];
   isOpen: boolean; onToggleOpen: () => void; onToggleValue: (value: string) => void;
+  getSwatch?: (value: string) => string;
 }) {
   return (
     <div data-dropdown-root className="relative">
@@ -596,10 +599,22 @@ function MultiSelectDropdown({
         onClick={onToggleOpen}
         className="w-full flex items-center justify-between px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-white hover:border-[#C9A96E] transition-colors"
       >
-        <span className={selected.length ? "text-gray-800" : "text-gray-400"}>
-          {selected.length ? selected.join(", ") : placeholder}
-        </span>
-        <ChevronDown size={15} className="text-gray-400" />
+        {selected.length ? (
+          <span className="flex items-center gap-1.5 flex-wrap">
+            {getSwatch &&
+              selected.slice(0, 5).map((v) => (
+                <span
+                  key={v}
+                  className="w-3.5 h-3.5 rounded-full border border-gray-200 shrink-0"
+                  style={{ backgroundColor: getSwatch(v) }}
+                />
+              ))}
+            <span className="text-gray-800">{selected.join(", ")}</span>
+          </span>
+        ) : (
+          <span className="text-gray-400">{placeholder}</span>
+        )}
+        <ChevronDown size={15} className="text-gray-400 shrink-0" />
       </button>
       {isOpen && (
         <div className="absolute top-full left-0 mt-1 z-20 w-full bg-white border border-gray-200 rounded-lg shadow-lg py-1 max-h-48 overflow-y-auto">
@@ -612,7 +627,15 @@ function MultiSelectDropdown({
                 onClick={() => onToggleValue(opt)}
                 className="w-full flex items-center justify-between px-4 py-2 text-sm text-gray-700 hover:bg-[#FAF8F3] transition-colors text-left"
               >
-                {opt}
+                <span className="flex items-center gap-2">
+                  {getSwatch && (
+                    <span
+                      className="w-3.5 h-3.5 rounded-full border border-gray-200 shrink-0"
+                      style={{ backgroundColor: getSwatch(opt) }}
+                    />
+                  )}
+                  {opt}
+                </span>
                 {checked && <Check size={14} className="text-[#C9A96E]" />}
               </button>
             );

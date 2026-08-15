@@ -48,33 +48,45 @@ export const SUBCATEGORIES: Record<CategoryValue, string[]> = {
   children: ["boy", "girls", "footwear", "baby", "family-matching", "bag", "special-occassion"],
 };
 
-export const SIZES = ["SM", "M", "L", "XL", "XXL", "CUSTOM"] as const;
+export const SIZES = ["2-3", "4-5", "6-7", "8-9", "10-12", "SM", "M", "L", "XL", "XXL", "CUSTOM"] as const;
 export type SizeValue = (typeof SIZES)[number];
 
-export const COLORS = [
-  "Black",
-  "Orange",
-  "Pink",
-  "Purple",
-  "Yellow",
-  "Lavender",
-  "lemonchiffon",
-  "ivory",
-  "chocolate",
-  "khaki",
-  "White",
-  "Red",
-  "Green",
-  "Blue",
-  "Gold",
-  "Silver",
-  "Beige",
-  "Navy",
-  "Brown",
-  "Maroon",
-  "Cream",
-  "Grey",
-] as const;
+// ─── Color swatches ───────────────────────────────────────────────────────────
+// Maps the stored color NAME (used in Firestore/cart/filters) to a display HEX.
+// Keep the keys identical to the strings in COLORS so lookups never miss.
+export const COLOR_HEX_MAP: Record<string, string> = {
+  Black: "#000000",
+  Orange: "#FFA500",
+  Pink: "#FFC0CB",
+  "fuchsia pink": "#FF00FF",
+  wine: "#722F37",
+  "turquoise blue": "#40E0D0",
+  "mint green": "#98FF98",
+  Yellow: "#FFEB3B",
+  Lavender: "#E6E6FA",
+  lemonchiffon: "#FFFACD",
+  ivory: "#FFFFF0",
+  chocolate: "#7B3F00",
+  khaki: "#C3B091",
+  White: "#FFFFFF",
+  Red: "#E53935",
+  Green: "#2E7D32",
+  Blue: "#1E5FBF",
+  Gold: "#D4AF37",
+  Silver: "#C0C0C0",
+  Beige: "#F5F5DC",
+  Navy: "#000080",
+  Brown: "#795548",
+  Maroon: "#800000",
+  Cream: "#FFFDD0",
+  Grey: "#808080",
+};
+
+export const COLORS = Object.keys(COLOR_HEX_MAP) as (keyof typeof COLOR_HEX_MAP)[];
+
+export function getColorHex(colorName: string): string {
+  return COLOR_HEX_MAP[colorName as keyof typeof COLOR_HEX_MAP] ?? "#D1D5DB";
+}
 
 export const LOW_STOCK_THRESHOLD = 15;
 export const MAX_PRODUCT_IMAGES = 5;
