@@ -137,8 +137,8 @@ export default function WelcomeLaunchPopup() {
             Something we've been crafting is almost here
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-[#A8A29E]">
-            Thank you for being here early. The full KgLuxe collection opens its doors soon
-            here's exactly when.
+            Thank you for being here early. The full KgLuxee collection opens its doors soon
+            here's exactly when. Enjoy 10% off your first order when we launch, just for being here early!
           </p>
 
           <div className="mt-6 flex justify-center gap-3 sm:gap-4">
