@@ -171,10 +171,7 @@ export default function CreateProductModal({
     });
   };
 
-  const setSizePricingField = (
-    field: keyof SizePricing,
-    value: string
-  ) => {
+  const setSizePricingField = (field: keyof SizePricing, value: string) => {
     setForm((f) => ({
       ...f,
       sizePricing: {
@@ -239,12 +236,12 @@ export default function CreateProductModal({
     // Build sizePricing — only persist fields that have actual numbers
     const sp = form.sizePricing;
     const sizePricing: SizePricing = {
-      sm: sp.sm !== "" && !isNaN(Number(sp.sm)) ? Number(sp.sm) : "",
-      lxl: sp.lxl !== "" && !isNaN(Number(sp.lxl)) ? Number(sp.lxl) : "",
-      xxlCustom:
-        sp.xxlCustom !== "" && !isNaN(Number(sp.xxlCustom))
-          ? Number(sp.xxlCustom)
-          : "",
+      sm:        sp.sm        !== "" && !isNaN(Number(sp.sm))        ? Number(sp.sm)        : "",
+      lxl:       sp.lxl       !== "" && !isNaN(Number(sp.lxl))       ? Number(sp.lxl)       : "",
+      xxlCustom: sp.xxlCustom !== "" && !isNaN(Number(sp.xxlCustom)) ? Number(sp.xxlCustom) : "",
+      age2_5:    sp.age2_5    !== "" && !isNaN(Number(sp.age2_5))    ? Number(sp.age2_5)    : "",
+      age6_9:    sp.age6_9    !== "" && !isNaN(Number(sp.age6_9))    ? Number(sp.age6_9)    : "",
+      age10_12:  sp.age10_12  !== "" && !isNaN(Number(sp.age10_12))  ? Number(sp.age10_12)  : "",
     };
 
     try {
@@ -298,11 +295,17 @@ export default function CreateProductModal({
     }
   };
 
-  // Determine which size tiers are relevant given the currently selected sizes
-  const hasSM = form.sizes.some((s) => ["S", "M"].includes(s));
-  const hasLXL = form.sizes.some((s) => ["L", "XL"].includes(s));
-  const hasXXLCustom = form.sizes.some((s) => ["XXL", "Custom"].includes(s));
-  const showSizePricing = hasSM || hasLXL || hasXXLCustom;
+  // ─── Tier detection ───────────────────────────────────────────────────────
+  const hasSM        = form.sizes.some((s) => ["SM", "M"].includes(s));
+  const hasLXL       = form.sizes.some((s) => ["L", "XL"].includes(s));
+  const hasXXLCustom = form.sizes.some((s) => ["XXL", "CUSTOM"].includes(s));
+  const hasAge2_5    = form.sizes.some((s) => ["2-3", "4-5"].includes(s));
+  const hasAge6_9    = form.sizes.some((s) => ["6-7", "8-9"].includes(s));
+  const hasAge10_12  = form.sizes.includes("10-12");
+
+  const hasAdultPricing = hasSM || hasLXL || hasXXLCustom;
+  const hasAgePricing   = hasAge2_5 || hasAge6_9 || hasAge10_12;
+  const showSizePricing = hasAdultPricing || hasAgePricing;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-3 sm:px-4">
@@ -451,69 +454,144 @@ export default function CreateProductModal({
               isOpen={openDropdown === "colors"}
               onToggleOpen={() => setOpenDropdown((d) => (d === "colors" ? null : "colors"))}
               onToggleValue={(v) => toggleMulti("colors", v)}
-              getSwatch={getColorHex}   // ← add
+              getSwatch={getColorHex}
             />
           </div>
 
-          {/* Size-based pricing — only shown when relevant sizes are selected */}
+          {/* Size-based pricing — appears only when relevant sizes are selected */}
           {showSizePricing && (
-            <div className="border border-[#C9A96E]/30 rounded-lg p-4 bg-[#FAF8F3]">
-              <p className="text-xs font-semibold tracking-wide text-gray-600 mb-1">
-                SIZE-BASED PRICING
-              </p>
-              <p className="text-[11px] text-gray-400 mb-3">
-                Optional. Leave a tier blank to fall back to the base price.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {hasSM && (
-                  <div>
-                    <label className="block text-[11px] font-semibold text-gray-500 mb-1">
-                      S / M ($)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={form.sizePricing.sm}
-                      onChange={(e) => setSizePricingField("sm", e.target.value)}
-                      placeholder="e.g. 25000"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20 transition-all bg-white"
-                    />
-                  </div>
-                )}
-                {hasLXL && (
-                  <div>
-                    <label className="block text-[11px] font-semibold text-gray-500 mb-1">
-                      L / XL ($)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={form.sizePricing.lxl}
-                      onChange={(e) => setSizePricingField("lxl", e.target.value)}
-                      placeholder="e.g. 30000"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20 transition-all bg-white"
-                    />
-                  </div>
-                )}
-                {hasXXLCustom && (
-                  <div>
-                    <label className="block text-[11px] font-semibold text-gray-500 mb-1">
-                      XXL / Custom ($)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={form.sizePricing.xxlCustom}
-                      onChange={(e) => setSizePricingField("xxlCustom", e.target.value)}
-                      placeholder="e.g. 35000"
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20 transition-all bg-white"
-                    />
-                  </div>
-                )}
+            <div className="border border-[#C9A96E]/30 rounded-lg p-4 bg-[#FAF8F3] flex flex-col gap-4">
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-gray-600 mb-1">
+                  SIZE-BASED PRICING
+                </p>
+                <p className="text-[11px] text-gray-400">
+                  Optional. Leave a tier blank to fall back to the base price.
+                </p>
               </div>
+
+              {/* Adult tiers */}
+              {hasAdultPricing && (
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-2">
+                    Adult Sizes
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {hasSM && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                          SM / M ($)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={form.sizePricing.sm}
+                          onChange={(e) => setSizePricingField("sm", e.target.value)}
+                          placeholder="e.g. 25000"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20 transition-all bg-white"
+                        />
+                      </div>
+                    )}
+                    {hasLXL && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                          L / XL ($)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={form.sizePricing.lxl}
+                          onChange={(e) => setSizePricingField("lxl", e.target.value)}
+                          placeholder="e.g. 30000"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20 transition-all bg-white"
+                        />
+                      </div>
+                    )}
+                    {hasXXLCustom && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                          XXL / Custom ($)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={form.sizePricing.xxlCustom}
+                          onChange={(e) => setSizePricingField("xxlCustom", e.target.value)}
+                          placeholder="e.g. 35000"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20 transition-all bg-white"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Divider between sections */}
+              {hasAdultPricing && hasAgePricing && (
+                <hr className="border-[#C9A96E]/20" />
+              )}
+
+              {/* Age tiers */}
+              {hasAgePricing && (
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-2">
+                    Age Sizes
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {hasAge2_5 && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                          2–3 / 4–5 ($)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={form.sizePricing.age2_5}
+                          onChange={(e) => setSizePricingField("age2_5", e.target.value)}
+                          placeholder="e.g. 15000"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20 transition-all bg-white"
+                        />
+                      </div>
+                    )}
+                    {hasAge6_9 && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                          6–7 / 8–9 ($)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={form.sizePricing.age6_9}
+                          onChange={(e) => setSizePricingField("age6_9", e.target.value)}
+                          placeholder="e.g. 18000"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20 transition-all bg-white"
+                        />
+                      </div>
+                    )}
+                    {hasAge10_12 && (
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-500 mb-1">
+                          10–12 ($)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          step="0.01"
+                          value={form.sizePricing.age10_12}
+                          onChange={(e) => setSizePricingField("age10_12", e.target.value)}
+                          placeholder="e.g. 20000"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-[#C9A96E] focus:ring-2 focus:ring-[#C9A96E]/20 transition-all bg-white"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

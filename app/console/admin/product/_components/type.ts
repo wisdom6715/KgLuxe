@@ -52,8 +52,6 @@ export const SIZES = ["2-3", "4-5", "6-7", "8-9", "10-12", "SM", "M", "L", "XL",
 export type SizeValue = (typeof SIZES)[number];
 
 // ─── Color swatches ───────────────────────────────────────────────────────────
-// Maps the stored color NAME (used in Firestore/cart/filters) to a display HEX.
-// Keep the keys identical to the strings in COLORS so lookups never miss.
 export const COLOR_HEX_MAP: Record<string, string> = {
   Black: "#000000",
   Orange: "#FFA500",
@@ -104,15 +102,23 @@ export function getStockStatus(stock: number): StockStatus {
 // ─── Size-based pricing ───────────────────────────────────────────────────────
 
 export interface SizePricing {
-  sm: number | "";      // SM, M
-  lxl: number | "";     // L, XL
+  // Adult tiers
+  sm: number | "";        // SM, M
+  lxl: number | "";       // L, XL
   xxlCustom: number | ""; // XXL, CUSTOM
+  // Age tiers
+  age2_5: number | "";    // 2-3, 4-5
+  age6_9: number | "";    // 6-7, 8-9
+  age10_12: number | "";  // 10-12
 }
 
 export const EMPTY_SIZE_PRICING: SizePricing = {
   sm: "",
   lxl: "",
   xxlCustom: "",
+  age2_5: "",
+  age6_9: "",
+  age10_12: "",
 };
 
 export function resolveSizePrice(
@@ -125,6 +131,9 @@ export function resolveSizePrice(
   if ((s === "SM" || s === "M") && sp.sm !== "") return Number(sp.sm);
   if ((s === "L" || s === "XL") && sp.lxl !== "") return Number(sp.lxl);
   if ((s === "XXL" || s === "CUSTOM") && sp.xxlCustom !== "") return Number(sp.xxlCustom);
+  if ((s === "2-3" || s === "4-5") && sp.age2_5 !== "") return Number(sp.age2_5);
+  if ((s === "6-7" || s === "8-9") && sp.age6_9 !== "") return Number(sp.age6_9);
+  if (s === "10-12" && sp.age10_12 !== "") return Number(sp.age10_12);
   return product.price;
 }
 
