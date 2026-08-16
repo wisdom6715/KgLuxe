@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 
 // Adjust to your real launch moment. Example: 5pm the day after launch prep begins.
-const LAUNCH_DATE = new Date("2026-08-16T19:00:00");
+const LAUNCH_DATE = new Date("2026-08-16T17:00:00");
 
 const STORAGE_KEY_LAUNCHED = "kgluxe_launch_complete";
 const STORAGE_KEY_SESSION_DISMISS = "kgluxe_popup_dismissed_session";
