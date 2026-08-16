@@ -554,6 +554,9 @@ export default function CartPage() {
                   +974 5500 7105
                 </a>
               </p>
+              <p className="text-sm text-gray-500">
+                This problem is temporary and will be fixed soon. We apologize for the inconvenience.
+              </p>
             </div>
 
             <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
