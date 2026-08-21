@@ -1,6 +1,5 @@
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   collection,
   doc,
@@ -12,10 +11,10 @@ import {
   getDocs,
   onSnapshot,
 } from "firebase/firestore";
-import { toast } from "sonner";
-import { db } from "@/lib/firebase.config";
 import { useCurrentUser } from "./useCurrentUser";
+import { db } from "@/lib/firebase.config";
 
+// ... (keep the existing WishlistItem and WishlistInput interfaces)
 export interface WishlistItem {
   id: string;
   product_id: string;
@@ -32,6 +31,9 @@ export interface WishlistInput {
   imageUrl: string;
 }
 
+
+const WISHLIST_STORAGE_KEY = "kg_luxee_wishlist";
+
 export function useWishlist() {
   const { user } = useCurrentUser();
   const [items, setItems] = useState<WishlistItem[]>([]);
@@ -39,55 +41,54 @@ export function useWishlist() {
   const [mutatingId, setMutatingId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (user) {
+      const wishRef = collection(db, "users", user.uid, "wishlist");
+      const unsub = onSnapshot(
+        wishRef,
+        (snap) => {
+          const rows: WishlistItem[] = snap.docs.map((d) => {
+            const data = d.data();
+            return {
+              id: d.id,
+              product_id: data.product_id,
+              name: data.name,
+              price: data.price,
+              imageUrl: data.imageUrl,
+            };
+          });
+          setItems(rows);
+          setLoading(false);
+        },
+        (err) => {
+          console.error("Failed to load wishlist:", err);
+          setLoading(false);
+        }
+      );
 
-    const wishRef = collection(db, "users", user.uid, "wishlist");
-    const unsub = onSnapshot(
-      wishRef,
-      (snap) => {
-        const rows: WishlistItem[] = snap.docs.map((d) => {
-          const data = d.data();
-          return {
-            id: d.id,
-            product_id: data.product_id,
-            name: data.name,
-            price: data.price,
-            imageUrl: data.imageUrl,
-          };
-        });
-        setItems(rows);
-        setLoading(false);
-      },
-      (err) => {
-        console.error("Failed to load wishlist:", err);
-        setLoading(false);
+      return () => unsub();
+    } else {
+      const storedItems = localStorage.getItem(WISHLIST_STORAGE_KEY);
+      if (storedItems) {
+        setItems(JSON.parse(storedItems));
       }
-    );
-
-    return () => unsub();
+      setLoading(false);
+    }
   }, [user]);
 
-  const getWishlistDocId = useCallback(
-    (productId: string) => items.find((i) => i.product_id === productId)?.id ?? null,
-    [items]
-  );
+  useEffect(() => {
+    if (!user) {
+      localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(items));
+    }
+  }, [user, items]);
 
-  const isWishlisted = useCallback(
-    (productId: string) => getWishlistDocId(productId) !== null,
-    [getWishlistDocId]
-  );
+  const isWishlisted = (productId: string) => items.some((i) => i.product_id === productId);
 
-  const toggleWishlist = useCallback(
-    async (product: WishlistInput) => {
-      if (!user) {
-        toast.error("Please log in to add items to wish list.");
-        return;
-      }
-
-      setMutatingId(product.id);
-      try {
+  const toggleWishlist = async (product: WishlistInput) => {
+    setMutatingId(product.id);
+    try {
+      if (user) {
         const wishRef = collection(db, "users", user.uid, "wishlist");
-        const existingId = getWishlistDocId(product.id);
+        const existingId = items.find((i) => i.product_id === product.id)?.id;
 
         if (existingId) {
           await deleteDoc(doc(wishRef, existingId));
@@ -109,27 +110,40 @@ export function useWishlist() {
             toast.success("Added to wishlist");
           }
         }
-      } catch (err) {
-        console.error("Failed to update wishlist:", err);
-        toast.error("Something went wrong. Please try again.");
-      } finally {
-        setMutatingId(null);
-      }
-    },
-    [user, getWishlistDocId]
-  );
+      } else {
+        const existingItem = items.find((i) => i.product_id === product.id);
 
-  const removeItem = useCallback(
-    async (productId: string) => {
-      if (!user) {
-        toast.error("Please wait a moment and try again.");
-        return;
+        if (existingItem) {
+          setItems((prev) => prev.filter((i) => i.product_id !== product.id));
+          toast.success("Removed from wishlist");
+        } else {
+          setItems((prev) => [
+            ...prev,
+            {
+              id: product.id,
+              product_id: product.id,
+              name: product.name,
+              price: product.price,
+              imageUrl: product.imageUrl,
+            },
+          ]);
+          toast.success("Added to wishlist");
+        }
       }
+    } catch (err) {
+      console.error("Failed to update wishlist:", err);
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setMutatingId(null);
+    }
+  };
 
-      setMutatingId(productId);
-      try {
+  const removeItem = async (productId: string) => {
+    setMutatingId(productId);
+    try {
+      if (user) {
         const wishRef = collection(db, "users", user.uid, "wishlist");
-        const existingId = getWishlistDocId(productId);
+        const existingId = items.find((i) => i.product_id === productId)?.id;
 
         if (existingId) {
           await deleteDoc(doc(wishRef, existingId));
@@ -137,24 +151,25 @@ export function useWishlist() {
           return;
         }
 
-        // Fallback in case local state hasn't caught up with Firestore yet
         const dupQuery = query(wishRef, where("product_id", "==", productId));
         const dupSnap = await getDocs(dupQuery);
         if (!dupSnap.empty) {
           await deleteDoc(doc(wishRef, dupSnap.docs[0].id));
           toast.success("Removed from wishlist");
         }
-      } catch (err) {
-        console.error("Failed to remove wishlist item:", err);
-        toast.error("Something went wrong. Please try again.");
-      } finally {
-        setMutatingId(null);
+      } else {
+        setItems((prev) => prev.filter((i) => i.product_id !== productId));
+        toast.success("Removed from wishlist");
       }
-    },
-    [user, getWishlistDocId]
-  );
+    } catch (err) {
+      console.error("Failed to remove wishlist item:", err);
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setMutatingId(null);
+    }
+  };
 
-  const isMutating = useCallback((productId: string) => mutatingId === productId, [mutatingId]);
+  const isMutating = (productId: string) => mutatingId === productId;
 
   return { items, loading, isWishlisted, toggleWishlist, removeItem, isMutating };
 }

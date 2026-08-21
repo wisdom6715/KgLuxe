@@ -78,6 +78,15 @@ export default function Header() {
               user ? (
                 <>
                   <button
+                    className="text-gray-600 hover:text-dark-brown transition-colors relative"
+                    aria-label="Cart"
+                    onClick={() => router.push("/cart")}
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" />
+                    </svg>
+                  </button>
+                  <button
                     className="text-gray-600 hover:text-dark-brown transition-colors"
                     aria-label="Account"
                     onClick={() => router.push("/profile/account")}
@@ -86,6 +95,9 @@ export default function Header() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z" />
                     </svg>
                   </button>
+                </>
+              ) : (
+                <div className="flex items-center gap-3">
                   <button
                     className="text-gray-600 hover:text-dark-brown transition-colors relative"
                     aria-label="Cart"
@@ -95,9 +107,6 @@ export default function Header() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" />
                     </svg>
                   </button>
-                </>
-              ) : (
-                <div className="flex items-center gap-3">
                   <button
                     onClick={() => router.push("/login")}
                     className="text-xs font-medium cursor-pointer text-gray-600 hover:text-dark-brown transition-colors whitespace-nowrap"

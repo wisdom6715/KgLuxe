@@ -2,24 +2,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  doc,
-  getDoc,
-  collection,
-  addDoc,
-  updateDoc,
-  serverTimestamp,
-  query,
-  where,
-  getDocs,
-} from "firebase/firestore";
-import {
-  onAuthStateChanged,
-  signInAnonymously,
-  type User,
-} from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import { useParams } from "next/navigation";
-import { db, auth } from "@/lib/firebase.config";
+import { db } from "@/lib/firebase.config";
 import { toast } from "sonner";
 import CustomMeasurementFields, {
   type Measurement,
@@ -27,8 +12,12 @@ import CustomMeasurementFields, {
 import SizeGuideModal from "./SizeGuideModal";
 import { useDiscount } from "@/hook/useDiscount";
 import { applyDiscount, isDiscountActive } from "@/lib/discount";
-import { resolveSizePrice, type SizePricing } from "@/app/console/admin/product/_components/type";
+import {
+  resolveSizePrice,
+  type SizePricing,
+} from "@/app/console/admin/product/_components/type";
 import ProductReviews from "@/components/ProductReview";
+import { useCart } from "@/hook/useAddToCart";
 
 interface Product {
   id: string;
@@ -58,13 +47,20 @@ const isCustomSize = (size: string) => size.trim().toLowerCase() === "custom";
 
 const SWIPE_THRESHOLD_PX = 50;
 
-function ProductImageSlider({ images, altBase }: { images: string[]; altBase: string }) {
+function ProductImageSlider({
+  images,
+  altBase,
+}: {
+  images: string[];
+  altBase: string;
+}) {
   const [index, setIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [touchDeltaX, setTouchDeltaX] = useState(0);
   const hasMultiple = images.length > 1;
 
-  const goTo = (next: number) => setIndex((next + images.length) % images.length);
+  const goTo = (next: number) =>
+    setIndex((next + images.length) % images.length);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartX(e.touches[0].clientX);
@@ -113,7 +109,13 @@ function ProductImageSlider({ images, altBase }: { images: string[]; altBase: st
             className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/85 hover:bg-white flex items-center justify-center text-neutral-800 shadow-sm transition-colors"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+              <path
+                d="M15 18l-6-6 6-6"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </button>
           <button
@@ -123,7 +125,13 @@ function ProductImageSlider({ images, altBase }: { images: string[]; altBase: st
             className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/85 hover:bg-white flex items-center justify-center text-neutral-800 shadow-sm transition-colors"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-              <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+              <path
+                d="M9 6l6 6-6 6"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </svg>
           </button>
           <div className="absolute bottom-3 sm:bottom-4 inset-x-0 flex items-center justify-center gap-1.5">
@@ -134,7 +142,9 @@ function ProductImageSlider({ images, altBase }: { images: string[]; altBase: st
                 onClick={() => goTo(i)}
                 aria-label={`Go to image ${i + 1}`}
                 className={`h-1.5 rounded-full transition-all ${
-                  i === index ? "w-5 bg-neutral-900" : "w-1.5 bg-neutral-900/30 hover:bg-neutral-900/50"
+                  i === index
+                    ? "w-5 bg-neutral-900"
+                    : "w-1.5 bg-neutral-900/30 hover:bg-neutral-900/50"
                 }`}
               />
             ))}
@@ -147,8 +157,14 @@ function ProductImageSlider({ images, altBase }: { images: string[]; altBase: st
 
 const swatchColor = (color: string) => {
   const known: Record<string, string> = {
-    black: "#111111", white: "#ffffff", cream: "#F5F0E6", beige: "#E8DCC8",
-    navy: "#1B2A4A", tan: "#D2B48C", olive: "#708238", burgundy: "#6D1B2C",
+    black: "#111111",
+    white: "#ffffff",
+    cream: "#F5F0E6",
+    beige: "#E8DCC8",
+    navy: "#1B2A4A",
+    tan: "#D2B48C",
+    olive: "#708238",
+    burgundy: "#6D1B2C",
   };
   return known[color.toLowerCase()] ?? color.toLowerCase();
 };
@@ -171,7 +187,9 @@ function ProductSkeleton() {
             <div className="h-3 bg-gray-200 rounded w-4/6" />
           </div>
           <div className="grid grid-cols-4 gap-2 sm:gap-3 mt-4">
-            {[...Array(4)].map((_, i) => <div key={i} className="h-12 bg-gray-200 rounded" />)}
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-12 bg-gray-200 rounded" />
+            ))}
           </div>
           <div className="h-12 bg-gray-200 rounded w-40 mt-2" />
           <div className="h-12 bg-gray-900 rounded mt-4" />
@@ -192,12 +210,18 @@ function PriceDisplay({
   hasDiscount: boolean;
 }) {
   if (!hasDiscount) {
-    return <p className="text-lg text-neutral-700 mb-6">{formatPrice(basePrice)}</p>;
+    return (
+      <p className="text-lg text-neutral-700 mb-6">{formatPrice(basePrice)}</p>
+    );
   }
   return (
     <div className="flex items-baseline gap-3 mb-6">
-      <p className="text-lg text-neutral-900 font-semibold">{formatPrice(discountedPrice)}</p>
-      <p className="text-base text-neutral-400 line-through">{formatPrice(basePrice)}</p>
+      <p className="text-lg text-neutral-900 font-semibold">
+        {formatPrice(discountedPrice)}
+      </p>
+      <p className="text-base text-neutral-400 line-through">
+        {formatPrice(basePrice)}
+      </p>
     </div>
   );
 }
@@ -214,34 +238,25 @@ export default function Component() {
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [quantity, setQuantity] = useState(1);
-  const [openSection, setOpenSection] = useState<"details" | "shipping" | null>(null);
+  const [openSection, setOpenSection] = useState<"details" | "shipping" | null>(
+    null,
+  );
 
-  const [user, setUser] = useState<User | null>(null);
-  const [addStatus, setAddStatus] = useState<"idle" | "adding" | "added">("idle");
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
+  const { addToCart, isAdding } = useCart();
 
   const { discount } = useDiscount();
   const discountLive = isDiscountActive(discount);
-
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      if (u) {
-        setUser(u);
-      } else {
-        signInAnonymously(auth).catch((err) =>
-          console.error("Anonymous sign-in failed:", err)
-        );
-      }
-    });
-    return () => unsub();
-  }, []);
 
   useEffect(() => {
     if (!productId) return;
     const fetchProduct = async () => {
       try {
         const snap = await getDoc(doc(db, "products", productId));
-        if (!snap.exists()) { setNotFound(true); return; }
+        if (!snap.exists()) {
+          setNotFound(true);
+          return;
+        }
         const data = { id: snap.id, ...snap.data() } as Product;
         setProduct(data);
         setSelectedSize(data.sizes?.[0] ?? "");
@@ -271,7 +286,9 @@ export default function Component() {
 
   const soldOut = product.stock === 0;
   const breadcrumb = [product.category, product.subCategory, product.name];
-  const gallery = product.imageUrls?.length ? product.imageUrls : [PLACEHOLDER_IMAGE];
+  const gallery = product.imageUrls?.length
+    ? product.imageUrls
+    : [PLACEHOLDER_IMAGE];
   const customSelected = isCustomSize(selectedSize);
 
   const sizeBasePrice = resolveSizePrice(product, selectedSize);
@@ -279,71 +296,39 @@ export default function Component() {
   const priceChanged = discountLive && effectivePrice !== sizeBasePrice;
 
   const handleAddToCart = async () => {
-    if (!user) { toast.error("Please log in to add items to your cart."); return; }
-    if (product.sizes.length > 0 && !selectedSize) { toast.error("Please select a size."); return; }
+    if (product.sizes.length > 0 && !selectedSize) {
+      toast.error("Please select a size.");
+      return;
+    }
+
     if (customSelected) {
       if (measurements.length === 0) {
         toast.error("Please add at least one measurement (in inches).");
         return;
       }
-      if (measurements.some((m) => !m.value.trim())) {
+
+      if (measurements.some((measurement) => !measurement.value.trim())) {
         toast.error("Please enter a value for each measurement you've added.");
         return;
       }
     }
-    if (product.colors.length > 0 && !selectedColor) { toast.error("Please select a color."); return; }
 
-    setAddStatus("adding");
-    try {
-      const cartRef = collection(db, "users", user.uid, "add-to-cart");
-
-      if (!customSelected) {
-        const dupQuery = query(
-          cartRef,
-          where("product_id", "==", product.id),
-          where("size", "==", selectedSize || null),
-          where("color", "==", selectedColor || null)
-        );
-        const dupSnap = await getDocs(dupQuery);
-        if (!dupSnap.empty) {
-          const existing = dupSnap.docs[0];
-          const newQty = existing.data().quantity + quantity;
-          await updateDoc(doc(cartRef, existing.id), {
-            quantity: Math.min(newQty, product.stock),
-            price: effectivePrice,
-            originalPrice: sizeBasePrice,
-            discountApplied: priceChanged ? discount!.percentage : null,
-          });
-          setAddStatus("added");
-          toast.success("Added to cart");
-          setTimeout(() => setAddStatus("idle"), 2000);
-          return;
-        }
-      }
-
-      await addDoc(cartRef, {
-        product_id: product.id,
-        name: product.name,
-        price: effectivePrice,
-        originalPrice: sizeBasePrice,
-        discountApplied: priceChanged ? discount!.percentage : null,
-        imageUrl: gallery[0],
-        stock: product.stock,
-        size: selectedSize || null,
-        color: selectedColor || null,
-        sizeMeasurements: customSelected ? measurements : null,
-        quantity,
-        createdAt: serverTimestamp(),
-      });
-
-      setAddStatus("added");
-      toast.success("Added to cart");
-      setTimeout(() => setAddStatus("idle"), 2000);
-    } catch (err) {
-      console.error("Failed to add to cart:", err);
-      setAddStatus("idle");
-      toast.error("Something went wrong. Please try again.");
+    if (product.colors.length > 0 && !selectedColor) {
+      toast.error("Please select a color.");
+      return;
     }
+
+    await addToCart({
+      id: product.id,
+      name: product.name,
+      price: effectivePrice,
+      imageUrl: gallery[0],
+      stock: product.stock,
+      size: selectedSize || undefined,
+      color: selectedColor || undefined,
+      sizeMeasurements: customSelected ? measurements : null,
+      quantity,
+    });
   };
 
   return (
@@ -351,30 +336,44 @@ export default function Component() {
       <div className="grid lg:grid-cols-[1fr_480px]">
         {/* LEFT: image slider — on desktop, reviews sit here below the image */}
         <div className="flex flex-col gap-2">
-          <ProductImageSlider key={productId} images={gallery} altBase={product.name} />
+          <ProductImageSlider
+            key={productId}
+            images={gallery}
+            altBase={product.name}
+          />
           {/* Desktop-only reviews (below image, left column) */}
           <div className="hidden lg:block">
             <ProductReviews product_id={productId} />
           </div>
         </div>
 
-        <SizeGuideModal isOpen={sizeGuideOpen} onClose={() => setSizeGuideOpen(false)} />
+        <SizeGuideModal
+          isOpen={sizeGuideOpen}
+          onClose={() => setSizeGuideOpen(false)}
+        />
 
         {/* RIGHT: product info */}
         <div className="px-5 sm:px-8 md:px-12 py-8 sm:py-10 lg:sticky lg:top-0 lg:h-fit">
-
           <p className="text-xs tracking-[0.15em] uppercase text-neutral-500 mb-5 sm:mb-6">
             {breadcrumb.map((step, i) => (
               <span key={step}>
                 {i > 0 && " / "}
-                <span className={i === breadcrumb.length - 1 ? "text-neutral-900 font-medium" : ""}>
+                <span
+                  className={
+                    i === breadcrumb.length - 1
+                      ? "text-neutral-900 font-medium"
+                      : ""
+                  }
+                >
                   {step}
                 </span>
               </span>
             ))}
           </p>
 
-          <h1 className="font-serif text-3xl sm:text-4xl mb-3">{product.name}</h1>
+          <h1 className="font-serif text-3xl sm:text-4xl mb-3">
+            {product.name}
+          </h1>
 
           <PriceDisplay
             basePrice={sizeBasePrice}
@@ -399,7 +398,9 @@ export default function Component() {
           {product.sizes.length > 0 && (
             <>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs tracking-[0.15em] uppercase font-medium">Size</span>
+                <span className="text-xs tracking-[0.15em] uppercase font-medium">
+                  Size
+                </span>
                 <button
                   type="button"
                   onClick={() => setSizeGuideOpen(true)}
@@ -434,9 +435,13 @@ export default function Component() {
                     Custom Measurements <span className="text-red-500">*</span>
                   </p>
                   <p className="text-xs text-neutral-500 mb-4">
-                    Choose a measurement, enter its size in inches, then add another if needed. At least one is required.
+                    Choose a measurement, enter its size in inches, then add
+                    another if needed. At least one is required.
                   </p>
-                  <CustomMeasurementFields measurements={measurements} onChange={setMeasurements} />
+                  <CustomMeasurementFields
+                    measurements={measurements}
+                    onChange={setMeasurements}
+                  />
                 </div>
               )}
             </>
@@ -446,9 +451,13 @@ export default function Component() {
           {product.colors.length > 0 && (
             <>
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs tracking-[0.15em] uppercase font-medium">Color</span>
+                <span className="text-xs tracking-[0.15em] uppercase font-medium">
+                  Color
+                </span>
                 {selectedColor && (
-                  <span className="text-xs text-neutral-500 capitalize">{selectedColor}</span>
+                  <span className="text-xs text-neutral-500 capitalize">
+                    {selectedColor}
+                  </span>
                 )}
               </div>
               <div className="flex flex-wrap gap-3 mb-8">
@@ -530,14 +539,11 @@ export default function Component() {
           ) : (
             <button
               onClick={handleAddToCart}
-              disabled={addStatus === "adding"}
+              disabled={isAdding(product.id)}
+
               className="w-full bg-neutral-900 text-white text-xs tracking-[0.15em] uppercase py-4 mb-1 hover:bg-neutral-700 transition-colors disabled:opacity-60"
             >
-              {addStatus === "adding"
-                ? "Adding..."
-                : addStatus === "added"
-                ? "Added to Cart ✓"
-                : "Add to Cart"}
+              {isAdding(product.id) ? "Adding..." : "Add to Cart"}
             </button>
           )}
 
@@ -560,17 +566,23 @@ export default function Component() {
               <div key={section.key} className="border-b border-neutral-200">
                 <button
                   onClick={() =>
-                    setOpenSection((current) => (current === section.key ? null : section.key))
+                    setOpenSection((current) =>
+                      current === section.key ? null : section.key,
+                    )
                   }
                   className="w-full flex items-center justify-between py-4 text-xs tracking-[0.15em] uppercase font-medium"
                 >
                   {section.label}
-                  <span className={`transition-transform inline-block ${openSection === section.key ? "rotate-180" : ""}`}>
+                  <span
+                    className={`transition-transform inline-block ${openSection === section.key ? "rotate-180" : ""}`}
+                  >
                     ⌄
                   </span>
                 </button>
                 {openSection === section.key && (
-                  <p className="text-sm text-neutral-600 leading-relaxed pb-4">{section.body}</p>
+                  <p className="text-sm text-neutral-600 leading-relaxed pb-4">
+                    {section.body}
+                  </p>
                 )}
               </div>
             ))}

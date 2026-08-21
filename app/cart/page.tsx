@@ -1,30 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Minus, Plus, Trash2, Pencil, X, Check } from "lucide-react";
-import { collection, onSnapshot, doc, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
-import { onAuthStateChanged, signInAnonymously, type User } from "firebase/auth";
+import { useState } from "react";
+import { Check, Info, Minus, Pencil, Plus, Trash2, X } from "lucide-react";
+import { doc, getDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { db, auth } from "@/lib/firebase.config";
-import { toast } from "sonner"
-import { useRouter } from "next/navigation";
 import CustomMeasurementFields, {
   type Measurement,
 } from "@/components/CustomMeasurementFields";
-
-interface CartItem {
-  id: string;
-  product_id: string;
-  name: string;
-  price: number;
-  imageUrl: string;
-  stock: number;
-  size: string | null;
-  color: string | null;
-  sizeMeasurements?: Measurement[] | null;
-  quantity: number;
-}
+import { db } from "@/lib/firebase.config";
+import { type CartItem, useCart } from "@/hook/useAddToCart";
 
 interface ProductOptions {
   sizes: string[];
@@ -39,8 +26,14 @@ interface EditDraft {
   measurements: Measurement[];
 }
 
-const PERKS = ["In-Store Pick Up", "Pay on Delivery", "Refer and Earn", "Warranty Covered"];
-const formatPrice = (amount: number) => `$ ${amount}`;
+const PERKS = [
+  "In-Store Pick Up",
+  "Pay on Delivery",
+  "Refer and Earn",
+  "Warranty Covered",
+];
+
+const formatPrice = (amount: number) => `$ ${Number(amount || 0).toFixed(2)}`;
 
 const isCustomSize = (size: string | null | undefined) =>
   (size ?? "").trim().toLowerCase() === "custom";
@@ -56,110 +49,101 @@ const swatchColor = (color: string) => {
     olive: "#708238",
     burgundy: "#6D1B2C",
   };
+
   return known[color.toLowerCase()] ?? color.toLowerCase();
 };
 
 function CartItemSkeleton() {
   return (
-    <div className="flex items-center justify-between gap-4 border border-gray-100 rounded-2xl bg-white shadow-sm px-6 py-5 animate-pulse">
-      <div className="flex flex-col gap-3 flex-1">
-        <div className="h-4 w-40 bg-gray-200 rounded" />
-        <div className="h-3 w-28 bg-gray-200 rounded" />
-        <div className="h-3 w-24 bg-gray-200 rounded" />
-        <div className="h-8 w-32 bg-gray-200 rounded mt-1" />
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-gray-100 bg-white px-6 py-5 shadow-sm animate-pulse">
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <div className="h-4 w-40 rounded bg-gray-200" />
+        <div className="h-3 w-28 rounded bg-gray-200" />
+        <div className="h-3 w-24 rounded bg-gray-200" />
+        <div className="mt-1 h-8 w-32 rounded bg-gray-200" />
       </div>
-      <div className="w-28 h-24 rounded-xl bg-gray-100 shrink-0" />
+      <div className="h-24 w-28 shrink-0 rounded-xl bg-gray-100" />
+    </div>
+  );
+}
+
+function EmptyCart() {
+  return (
+    <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-gray-100 bg-cream-50 py-24">
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-[#C9A96E]/10">
+        <svg
+          viewBox="0 0 24 24"
+          className="h-8 w-8 text-[#C9A96E]"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"
+          />
+        </svg>
+      </div>
+      <p className="text-sm font-medium text-gray-500">Your cart is empty</p>
+      <a
+        href="/"
+        className="text-sm font-semibold text-[#C9A96E] hover:underline"
+      >
+        Browse products →
+      </a>
     </div>
   );
 }
 
 export default function CartPage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [mutatingId, setMutatingId] = useState<string | null>(null);
-  const router = useRouter()
+  // Use the user returned by the same useCart instance. This prevents the
+  // cart page and cart hook from briefly disagreeing during auth hydration.
+  const {
+    user,
+    items,
+    loading,
+    syncing,
+    isGuest,
+    updateQuantity,
+    updateItem,
+    removeFromCart,
+  } = useCart();
+  const router = useRouter();
 
-  // ── Edit state ──
+  const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<EditDraft | null>(null);
-  const [productOptions, setProductOptions] = useState<Record<string, ProductOptions>>({});
+  const [productOptions, setProductOptions] = useState<
+    Record<string, ProductOptions>
+  >({});
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      if (u) setUser(u);
-      else signInAnonymously(auth).catch((err) => console.error("Anonymous sign-in failed:", err));
-    });
-    return () => unsub();
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
-    setLoading(true);
-    const cartRef = collection(db, "users", user.uid, "add-to-cart");
-
-    const unsub = onSnapshot(cartRef, (snap) => {
-      const rows: CartItem[] = snap.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          product_id: data.product_id,
-          name: data.name,
-          price: data.price,
-          imageUrl: data.imageUrl,
-          stock: data.stock,
-          size: data.size ?? null,
-          color: data.color ?? null,
-          sizeMeasurements: data.sizeMeasurements ?? null,
-          quantity: data.quantity ?? 1,
-        };
-      });
-      setItems(rows);
-      setLoading(false);
-    });
-
-    return () => unsub();
-  }, [user]);
-
   const updateQty = async (item: CartItem, delta: number) => {
-    if (!user) return;
-    const nextQty = item.quantity + delta;
-
+    const nextQuantity = item.quantity + delta;
     setMutatingId(item.id);
+
     try {
-      if (nextQty <= 0) {
-        await deleteDoc(doc(db, "users", user.uid, "add-to-cart", item.id));
-        toast.success('Item removed from cart');
-      } else {
-        await updateDoc(doc(db, "users", user.uid, "add-to-cart", item.id), {
-          quantity: Math.min(nextQty, item.stock || Infinity),
-        });
-        toast.success('Quantity updated');
-      }
-    } catch (err) {
-      console.error("Failed to update quantity:", err);
-      toast.error('Failed to update quantity');
+      await updateQuantity(item.id, nextQuantity, item.stock);
+      toast.success(
+        nextQuantity <= 0 ? "Item removed from cart" : "Quantity updated",
+      );
     } finally {
       setMutatingId(null);
     }
   };
 
-  const removeItem = async (id: string) => {
-    if (!user) return;
-    setMutatingId(id);
+  const removeItem = async (itemId: string) => {
+    setMutatingId(itemId);
+
     try {
-      await deleteDoc(doc(db, "users", user.uid, "add-to-cart", id));
-      toast.success('Item removed from cart');
-    } catch (err) {
-      console.error("Failed to remove item:", err);
+      await removeFromCart(itemId);
+      toast.success("Item removed from cart");
     } finally {
       setMutatingId(null);
     }
   };
-
-  // ── Edit handlers ──
 
   const startEdit = async (item: CartItem) => {
     setEditingId(item.id);
@@ -170,27 +154,28 @@ export default function CartPage() {
       measurements: item.sizeMeasurements ?? [],
     });
 
-    if (!productOptions[item.product_id]) {
-      setLoadingOptions(true);
-      try {
-        const snap = await getDoc(doc(db, "products", item.product_id));
-        if (snap.exists()) {
-          const data = snap.data();
-          setProductOptions((prev) => ({
-            ...prev,
-            [item.product_id]: {
-              sizes: data.sizes ?? [],
-              colors: data.colors ?? [],
-              stock: data.stock ?? item.stock,
-            },
-          }));
-        }
-      } catch (err) {
-        console.error("Failed to load product options:", err);
-        toast.error("Couldn't load size/color options for this item.");
-      } finally {
-        setLoadingOptions(false);
+    if (productOptions[item.product_id]) return;
+
+    setLoadingOptions(true);
+    try {
+      const snapshot = await getDoc(doc(db, "products", item.product_id));
+
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        setProductOptions((current) => ({
+          ...current,
+          [item.product_id]: {
+            sizes: Array.isArray(data.sizes) ? data.sizes : [],
+            colors: Array.isArray(data.colors) ? data.colors : [],
+            stock: Number(data.stock ?? item.stock),
+          },
+        }));
       }
+    } catch (error) {
+      console.error("Failed to load product options:", error);
+      toast.error("Could not load size and color options.");
+    } finally {
+      setLoadingOptions(false);
     }
   };
 
@@ -200,72 +185,123 @@ export default function CartPage() {
   };
 
   const saveEdit = async (item: CartItem) => {
-    if (!user || !editDraft) return;
+    if (!editDraft) return;
+
     const options = productOptions[item.product_id];
 
-    if (options?.sizes?.length && !editDraft.size) {
+    if (options?.sizes.length && !editDraft.size) {
       toast.error("Please select a size.");
       return;
     }
+
     if (isCustomSize(editDraft.size)) {
       if (editDraft.measurements.length === 0) {
-        toast.error("Please add at least one measurement (in cm).");
+        toast.error("Please add at least one measurement in cm.");
         return;
       }
-      const hasEmpty = editDraft.measurements.some((m) => !m.value.trim());
-      if (hasEmpty) {
-        toast.error("Please enter a value for each measurement you've added.");
+
+      if (
+        editDraft.measurements.some((measurement) => !measurement.value.trim())
+      ) {
+        toast.error("Please enter a value for every measurement.");
         return;
       }
     }
-    if (options?.colors?.length && !editDraft.color) {
+
+    if (options?.colors.length && !editDraft.color) {
       toast.error("Please select a color.");
       return;
     }
+
     if (editDraft.quantity < 1) {
       toast.error("Quantity must be at least 1.");
       return;
     }
 
-    const maxStock = options?.stock ?? item.stock;
+    const maxStock = Number(options?.stock ?? item.stock);
+    const quantity =
+      maxStock > 0
+        ? Math.min(editDraft.quantity, maxStock)
+        : editDraft.quantity;
 
     setSaving(true);
     try {
-      await updateDoc(doc(db, "users", user.uid, "add-to-cart", item.id), {
+      await updateItem(item.id, {
         size: editDraft.size || null,
         color: editDraft.color || null,
-        sizeMeasurements: isCustomSize(editDraft.size) ? editDraft.measurements : null,
-        quantity: Math.min(editDraft.quantity, maxStock || editDraft.quantity),
+        sizeMeasurements: isCustomSize(editDraft.size)
+          ? editDraft.measurements
+          : null,
+        quantity,
+        stock: maxStock,
       });
       toast.success("Item updated");
-      setEditingId(null);
-      setEditDraft(null);
-    } catch (err) {
-      console.error("Failed to update item:", err);
-      toast.error("Failed to update item");
+      cancelEdit();
+    } catch (error) {
+      console.error("Failed to update item:", error);
     } finally {
       setSaving(false);
     }
   };
 
-  const total = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const handleCheckout = () => {
+    if (loading || syncing || items.length === 0) return;
+
+    if (!user) {
+      router.push(`/login?redirect=${encodeURIComponent("/cart/checkout")}`);
+      return;
+    }
+
+    router.push("/cart/checkout");
+  };
+
+  const total = items.reduce(
+    (sum, item) => sum + Number(item.price || 0) * item.quantity,
+    0,
+  );
 
   return (
-    <div className="h-full bg-white">
+    <div className="min-h-full bg-white">
       <Header />
-      <div className="max-w-5xl mx-auto px-6 py-10">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Your Cart</h1>
 
-        <div className="flex flex-wrap items-center gap-x-1 mb-8">
-          {PERKS.map((perk, i) => (
+      <main className="mx-auto max-w-5xl px-6 py-10">
+        <h1 className="mb-2 text-2xl font-bold text-gray-900">Your Cart</h1>
+
+        <div className="mb-6 flex flex-wrap items-center gap-x-1">
+          {PERKS.map((perk, index) => (
             <span key={perk} className="flex items-center">
-              <a href="#" className="text-sm text-[#C9A96E] hover:text-[#A07840] transition-colors">
-                {perk}
-              </a>
-              {i < PERKS.length - 1 && <span className="mx-1.5 text-gray-300 text-sm">•</span>}
+              <span className="text-sm text-[#C9A96E]">{perk}</span>
+              {index < PERKS.length - 1 && (
+                <span className="mx-1.5 text-sm text-gray-300">•</span>
+              )}
             </span>
           ))}
         </div>
+
+        {isGuest && !loading && items.length > 0 && (
+          <div className="mb-6 flex items-center gap-2 rounded-xl border border-[#C9A96E]/20 bg-[#C9A96E]/10 px-4 py-3 text-sm text-[#7a5f30]">
+            <Info size={16} className="shrink-0" />
+            <span>
+              You are browsing as a guest. This cart is saved on this device.{" "}
+              <button
+                type="button"
+                onClick={() =>
+                  router.push(`/login?redirect=${encodeURIComponent("/cart")}`)
+                }
+                className="font-semibold underline hover:text-[#A07840]"
+              >
+                Sign in
+              </button>{" "}
+              to save it to your account.
+            </span>
+          </div>
+        )}
+
+        {syncing && (
+          <div className="mb-6 flex items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-700">
+            Saving your guest cart to your account…
+          </div>
+        )}
 
         {loading ? (
           <div className="flex flex-col gap-3">
@@ -273,119 +309,154 @@ export default function CartPage() {
             <CartItemSkeleton />
           </div>
         ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-4 border border-gray-100 rounded-2xl bg-cream-50">
-            <div className="w-16 h-16 rounded-full bg-[#C9A96E]/10 flex items-center justify-center">
-              <svg viewBox="0 0 24 24" className="w-8 h-8 text-[#C9A96E]" fill="none" stroke="currentColor" strokeWidth={1.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 3h1.386c.51 0 .955.343 1.087.835l.383 1.437M7.5 14.25a3 3 0 00-3 3h15.75m-12.75-3h11.218c1.121-2.3 2.1-4.684 2.924-7.138a60.114 60.114 0 00-16.536-1.84M7.5 14.25L5.106 5.272M6 20.25a.75.75 0 11-1.5 0 .75.75 0 011.5 0zm12.75 0a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
-              </svg>
-            </div>
-            <p className="text-gray-500 text-sm font-medium">Your cart is empty</p>
-            <a href="/" className="text-sm font-semibold text-[#C9A96E] hover:underline">
-              Browse products →
-            </a>
-          </div>
+          <EmptyCart />
         ) : (
           <div className="flex flex-col gap-3">
             {items.map((item) => {
               const isEditing = editingId === item.id;
               const options = productOptions[item.product_id];
+              const atStockLimit =
+                item.stock > 0 && item.quantity >= item.stock;
 
               return (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between gap-4 border border-gray-100 rounded-2xl bg-white shadow-sm px-6 py-5 hover:border-[#C9A96E]/30 transition-colors"
+                  className="flex items-center justify-between gap-4 rounded-2xl border border-gray-100 bg-white px-6 py-5 shadow-sm transition-colors hover:border-[#C9A96E]/30"
                 >
-                  <div className="flex flex-col gap-3 min-w-0 flex-1">
+                  <div className="flex min-w-0 flex-1 flex-col gap-3">
                     <div>
-                      <h2 className="text-base font-semibold text-gray-900">{item.name}</h2>
+                      <h2 className="text-base font-semibold text-gray-900">
+                        {item.name}
+                      </h2>
 
                       {!isEditing && (
                         <>
-                          <div className="flex flex-wrap gap-x-4 gap-y-0.5 mt-0.5">
+                          <div className="mt-0.5 flex flex-wrap gap-x-4 gap-y-0.5">
                             {item.size && (
                               <p className="text-sm text-gray-500">
-                                Size: <span className="text-gray-700">{item.size}</span>
+                                Size:{" "}
+                                <span className="text-gray-700">
+                                  {item.size}
+                                </span>
                               </p>
                             )}
+
                             {item.color && (
-                              <p className="text-sm text-gray-500 flex items-center gap-1.5">
+                              <p className="flex items-center gap-1.5 text-sm text-gray-500">
                                 Color:
                                 <span
-                                  className="inline-block w-3.5 h-3.5 rounded-full border border-gray-300"
-                                  style={{ backgroundColor: swatchColor(item.color) }}
+                                  className="inline-block h-3.5 w-3.5 rounded-full border border-gray-300"
+                                  style={{
+                                    backgroundColor: swatchColor(item.color),
+                                  }}
                                 />
-                                <span className="text-gray-700 capitalize">{item.color}</span>
+                                <span className="capitalize text-gray-700">
+                                  {item.color}
+                                </span>
                               </p>
                             )}
                           </div>
-                          {isCustomSize(item.size) && item.sizeMeasurements && item.sizeMeasurements.length > 0 && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              Measurements:{" "}
-                              {item.sizeMeasurements
-                                .map((m) => `${m.type}: ${m.value} cm`)
-                                .join(", ")}
-                            </p>
-                          )}
-                          <p className="text-sm text-gray-500 mt-0.5">
-                            Price: <span className="font-semibold text-gray-900">{formatPrice(item.price)}</span>
+
+                          {isCustomSize(item.size) &&
+                            item.sizeMeasurements &&
+                            item.sizeMeasurements.length > 0 && (
+                              <p className="mt-1 text-xs text-gray-500">
+                                Measurements:{" "}
+                                {item.sizeMeasurements
+                                  .map(
+                                    (measurement) =>
+                                      `${measurement.type}: ${measurement.value} cm`,
+                                  )
+                                  .join(", ")}
+                              </p>
+                            )}
+
+                          <p className="mt-0.5 text-sm text-gray-500">
+                            Price:{" "}
+                            <span className="font-semibold text-gray-900">
+                              {formatPrice(item.price)}
+                            </span>
                           </p>
                         </>
                       )}
                     </div>
 
                     {!isEditing ? (
-                      <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex flex-wrap items-center gap-3">
                         <button
+                          type="button"
                           onClick={() => updateQty(item, -1)}
-                          disabled={mutatingId === item.id}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-[#C9A96E] hover:text-[#C9A96E] transition-all disabled:opacity-40"
+                          disabled={mutatingId === item.id || syncing}
+                          aria-label={`Decrease ${item.name} quantity`}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-all hover:border-[#C9A96E] hover:text-[#C9A96E] disabled:opacity-40"
                         >
                           <Minus size={13} />
                         </button>
-                        <span className="w-5 text-center text-sm font-semibold text-gray-800">{item.quantity}</span>
+
+                        <span className="w-5 text-center text-sm font-semibold text-gray-800">
+                          {item.quantity}
+                        </span>
+
                         <button
+                          type="button"
                           onClick={() => updateQty(item, 1)}
-                          disabled={mutatingId === item.id || item.quantity >= item.stock}
-                          className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-200 text-gray-500 hover:border-[#C9A96E] hover:text-[#C9A96E] transition-all disabled:opacity-40"
+                          disabled={
+                            mutatingId === item.id || atStockLimit || syncing
+                          }
+                          aria-label={`Increase ${item.name} quantity`}
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-all hover:border-[#C9A96E] hover:text-[#C9A96E] disabled:opacity-40"
                         >
                           <Plus size={13} />
                         </button>
+
                         <button
+                          type="button"
                           onClick={() => startEdit(item)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-sm font-medium hover:border-[#C9A96E] hover:text-[#A07840] transition-all"
+                          disabled={syncing}
+                          className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 transition-all hover:border-[#C9A96E] hover:text-[#A07840] disabled:opacity-40"
                         >
                           <Pencil size={12} />
                           Edit
                         </button>
+
                         <button
+                          type="button"
                           onClick={() => removeItem(item.id)}
-                          disabled={mutatingId === item.id}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 text-red-400 text-sm font-medium hover:bg-red-50 hover:border-red-300 transition-all disabled:opacity-40"
+                          disabled={mutatingId === item.id || syncing}
+                          className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-sm font-medium text-red-400 transition-all hover:border-red-300 hover:bg-red-50 disabled:opacity-40"
                         >
                           <Trash2 size={12} />
                           Remove
                         </button>
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-4 border border-gray-200 rounded-xl p-4 bg-gray-50/50">
+                      <div className="flex flex-col gap-4 rounded-xl border border-gray-200 bg-gray-50/50 p-4">
                         {loadingOptions && !options ? (
-                          <p className="text-xs text-gray-400">Loading options…</p>
+                          <p className="text-xs text-gray-400">
+                            Loading options…
+                          </p>
                         ) : (
                           <>
-                            {/* SIZE */}
-                            {options?.sizes && options.sizes.length > 0 && (
+                            {options?.sizes.length ? (
                               <div>
-                                <p className="text-xs font-medium text-gray-600 mb-2">Size</p>
+                                <p className="mb-2 text-xs font-medium text-gray-600">
+                                  Size
+                                </p>
                                 <div className="flex flex-wrap gap-2">
                                   {options.sizes.map((size) => (
                                     <button
+                                      type="button"
                                       key={size}
                                       onClick={() =>
-                                        setEditDraft((prev) => (prev ? { ...prev, size } : prev))
+                                        setEditDraft((current) =>
+                                          current
+                                            ? { ...current, size }
+                                            : current,
+                                        )
                                       }
-                                      className={`border rounded-lg px-3 py-1.5 text-xs transition-colors ${
+                                      className={`rounded-lg border px-3 py-1.5 text-xs transition-colors ${
                                         editDraft?.size === size
-                                          ? "bg-gray-900 text-white border-gray-900"
+                                          ? "border-gray-900 bg-gray-900 text-white"
                                           : "border-gray-300 text-gray-700 hover:border-gray-900"
                                       }`}
                                     >
@@ -394,43 +465,54 @@ export default function CartPage() {
                                   ))}
                                 </div>
                               </div>
-                            )}
+                            ) : null}
 
-                            {/* CUSTOM SIZE MEASUREMENTS */}
                             {editDraft && isCustomSize(editDraft.size) && (
                               <div>
-                                <p className="text-xs font-medium text-gray-600 mb-2">
-                                  Custom Measurements <span className="text-red-500">*</span>
+                                <p className="mb-2 text-xs font-medium text-gray-600">
+                                  Custom Measurements{" "}
+                                  <span className="text-red-500">*</span>
                                 </p>
                                 <CustomMeasurementFields
                                   measurements={editDraft.measurements}
                                   onChange={(measurements) =>
-                                    setEditDraft((prev) => (prev ? { ...prev, measurements } : prev))
+                                    setEditDraft((current) =>
+                                      current
+                                        ? { ...current, measurements }
+                                        : current,
+                                    )
                                   }
                                 />
                               </div>
                             )}
 
-                            {/* COLOR */}
-                            {options?.colors && options.colors.length > 0 && (
+                            {options?.colors.length ? (
                               <div>
-                                <p className="text-xs font-medium text-gray-600 mb-2">Color</p>
+                                <p className="mb-2 text-xs font-medium text-gray-600">
+                                  Color
+                                </p>
                                 <div className="flex flex-wrap gap-2">
                                   {options.colors.map((color) => (
                                     <button
+                                      type="button"
                                       key={color}
                                       onClick={() =>
-                                        setEditDraft((prev) => (prev ? { ...prev, color } : prev))
+                                        setEditDraft((current) =>
+                                          current
+                                            ? { ...current, color }
+                                            : current,
+                                        )
                                       }
                                       title={color}
-                                      className={`w-8 h-8 rounded-full border-2 transition-all ${
+                                      aria-label={`Select ${color}`}
+                                      className={`h-8 w-8 rounded-full border-2 transition-all ${
                                         editDraft?.color === color
-                                          ? "border-gray-900 scale-105"
+                                          ? "scale-105 border-gray-900"
                                           : "border-gray-200 hover:border-gray-400"
                                       }`}
                                     >
                                       <span
-                                        className="block w-full h-full rounded-full"
+                                        className="block h-full w-full rounded-full"
                                         style={{
                                           backgroundColor: swatchColor(color),
                                           boxShadow:
@@ -443,40 +525,58 @@ export default function CartPage() {
                                   ))}
                                 </div>
                               </div>
-                            )}
+                            ) : null}
 
-                            {/* QUANTITY */}
                             <div>
-                              <p className="text-xs font-medium text-gray-600 mb-2">Quantity</p>
-                              <div className="flex items-center gap-3 w-fit">
+                              <p className="mb-2 text-xs font-medium text-gray-600">
+                                Quantity
+                              </p>
+                              <div className="flex w-fit items-center gap-3">
                                 <button
+                                  type="button"
                                   onClick={() =>
-                                    setEditDraft((prev) =>
-                                      prev ? { ...prev, quantity: Math.max(1, prev.quantity - 1) } : prev
+                                    setEditDraft((current) =>
+                                      current
+                                        ? {
+                                            ...current,
+                                            quantity: Math.max(
+                                              1,
+                                              current.quantity - 1,
+                                            ),
+                                          }
+                                        : current,
                                     )
                                   }
-                                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600"
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 text-gray-600"
                                 >
                                   <Minus size={13} />
                                 </button>
+
                                 <span className="w-8 text-center text-sm font-semibold text-gray-800">
                                   {editDraft?.quantity}
                                 </span>
+
                                 <button
+                                  type="button"
                                   onClick={() =>
-                                    setEditDraft((prev) =>
-                                      prev
-                                        ? {
-                                            ...prev,
-                                            quantity: Math.min(
-                                              options?.stock ?? item.stock,
-                                              prev.quantity + 1
-                                            ),
-                                          }
-                                        : prev
-                                    )
+                                    setEditDraft((current) => {
+                                      if (!current) return current;
+                                      const stock = Number(
+                                        options?.stock ?? item.stock,
+                                      );
+                                      return {
+                                        ...current,
+                                        quantity:
+                                          stock > 0
+                                            ? Math.min(
+                                                stock,
+                                                current.quantity + 1,
+                                              )
+                                            : current.quantity + 1,
+                                      };
+                                    })
                                   }
-                                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-gray-300 text-gray-600"
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-300 text-gray-600"
                                 >
                                   <Plus size={13} />
                                 </button>
@@ -485,21 +585,23 @@ export default function CartPage() {
                           </>
                         )}
 
-                        {/* SAVE / CANCEL */}
                         <div className="flex items-center gap-2 pt-1">
                           <button
+                            type="button"
                             onClick={() => saveEdit(item)}
                             disabled={saving}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold disabled:opacity-60"
+                            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"
                             style={{ background: "#C9A96E" }}
                           >
                             <Check size={13} />
-                            {saving ? "Saving..." : "Save"}
+                            {saving ? "Saving…" : "Save"}
                           </button>
+
                           <button
+                            type="button"
                             onClick={cancelEdit}
                             disabled={saving}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 text-xs font-medium hover:bg-gray-100 disabled:opacity-60"
+                            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 disabled:opacity-60"
                           >
                             <X size={13} />
                             Cancel
@@ -509,11 +611,21 @@ export default function CartPage() {
                     )}
                   </div>
 
-                  <div className="w-28 h-24 rounded-xl overflow-hidden shrink-0 bg-gray-50 border border-gray-100 flex items-center justify-center">
+                  <div className="flex h-24 w-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
                     {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                      <img
+                        src={item.imageUrl}
+                        alt={item.name}
+                        className="h-full w-full object-cover"
+                      />
                     ) : (
-                      <svg viewBox="0 0 64 64" className="w-10 h-10 text-gray-300" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                      <svg
+                        viewBox="0 0 64 64"
+                        className="h-10 w-10 text-gray-300"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={1.5}
+                      >
                         <rect x="8" y="8" width="48" height="48" rx="6" />
                         <circle cx="24" cy="24" r="5" />
                         <path d="M8 42l14-14 10 10 8-8 14 14" />
@@ -528,61 +640,34 @@ export default function CartPage() {
 
         {!loading && items.length > 0 && (
           <div className="mt-8 flex flex-col gap-4">
-            {/* Payment Notice */}
-            <div className="rounded-xl border border-[#C9A96E]/40 bg-[#FDF8F0] px-5 py-4 text-sm text-gray-700 leading-relaxed">
-              <p className="font-semibold text-gray-900 mb-1">💳 Payment Information</p>
-              <p className="mb-2">
-                Our payment processor currently supports <span className="font-medium">Nigerian cards (Naira)</span>. 
-                If you are paying in <span className="font-medium">USD, CAD, or any other currency</span>, please make a direct bank transfer to:
-              </p>
-              <div className="bg-white border border-[#C9A96E]/30 rounded-lg px-4 py-3 mb-3 space-y-1 text-sm">
-                <p><span className="text-gray-500">Account Name:</span> <span className="font-semibold text-gray-900">KG LUXEE LIMITED</span></p>
-                <p><span className="text-gray-500">Account Number:</span> <span className="font-semibold text-gray-900">1987267680</span></p>
-                <p><span className="text-gray-500">Bank:</span> <span className="font-semibold text-gray-900">Access Bank</span></p>
-              </div>
-              <p>
-                After payment, please send your proof of payment and order details via WhatsApp for confirmation:{" "}
-                <a
-                  href="https://wa.me/97455007105"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 font-semibold text-[#25D366] hover:underline"
-                >
-                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                  </svg>
-                  +974 5500 7105
-                </a>
-              </p>
-              <p className="text-sm text-gray-500">
-                This problem is temporary and will be fixed soon. We apologize for the inconvenience.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex flex-col items-center justify-between gap-4 sm:flex-row">
               <p className="text-base font-semibold text-gray-900">
                 Total: <span className="text-lg">{formatPrice(total)}</span>
               </p>
+
               <div className="flex items-center gap-3">
                 <a
                   href="/products/all"
-                  className="px-6 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 bg-white hover:border-[#C9A96E] hover:text-[#A07840] transition-all text-center"
+                  className="rounded-xl border border-gray-200 bg-white px-6 py-2.5 text-center text-sm font-medium text-gray-600 transition-all hover:border-[#C9A96E] hover:text-[#A07840]"
                 >
                   Continue Shopping
                 </a>
+
                 <button
-                  onClick={() => router.push("/cart/checkout")}
-                  disabled={items.length === 0}
-                  className="px-8 py-3 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  type="button"
+                  onClick={handleCheckout}
+                  disabled={items.length === 0 || loading || syncing}
+                  className="rounded-xl px-8 py-3 text-sm font-semibold text-white transition-all disabled:cursor-not-allowed disabled:opacity-50"
                   style={{ background: "#C9A96E" }}
                 >
-                  Checkout
+                  {syncing ? "Saving Cart…" : "Checkout"}
                 </button>
               </div>
             </div>
           </div>
         )}
-      </div>
+      </main>
+
       <Footer />
     </div>
   );
