@@ -264,13 +264,7 @@ export default function CheckoutPage() {
   };
 
   // Same inline form UI as AddressesPage, reused here
-  const AddressForm = ({
-    onSave,
-    onCancel,
-  }: {
-    onSave: () => void;
-    onCancel: () => void;
-  }) => (
+  const renderAddressForm = (onSave: () => void, onCancel: () => void) => (
     <div className="bg-white rounded-xl border border-[#C9A96E]/30 shadow-sm p-5">
       <h3 className="text-sm font-medium text-gray-700 mb-4">
         {addingAddr || isGuest ? "Add New Address" : "Edit Address"}
@@ -625,10 +619,7 @@ export default function CheckoutPage() {
                       </button>
                     </div>
                   ) : (
-                    <AddressForm
-                      onSave={saveAddAddr}
-                      onCancel={cancelAddrForm}
-                    />
+                    renderAddressForm(saveAddAddr, cancelAddrForm)
                   )}
                 </div>
               )}
@@ -654,10 +645,10 @@ export default function CheckoutPage() {
 
                     {(addingAddr || editingAddrId) && (
                       <div className="mb-4">
-                        <AddressForm
-                          onSave={addingAddr ? saveAddAddr : saveEditAddr}
-                          onCancel={cancelAddrForm}
-                        />
+                        {renderAddressForm(
+                          addingAddr ? saveAddAddr : saveEditAddr,
+                          cancelAddrForm,
+                        )}
                       </div>
                     )}
 
@@ -802,7 +793,7 @@ export default function CheckoutPage() {
                   <span>
                     I have read and agree to the{" "}
                     <a
-                      href="/terms"
+                      href="/terms-of-service"
                       target="_blank"
                       rel="noreferrer"
                       className="underline"
