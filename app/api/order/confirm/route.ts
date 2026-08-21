@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
             <p style="margin-top:8px; color:#666; font-size:13px;">
               Delivering to: ${address.street}, ${address.city}, ${address.state}, ${address.country}
             </p>
-            <p style="margin-top:24px; color:#999; font-size:12px;">Order ID: ${orderRef.id}</p>
+            <p style="margin-top:24px; color:#000; font-size:12px;">Order ID: ${orderRef.id}</p>
           </div>
         `,
       });
