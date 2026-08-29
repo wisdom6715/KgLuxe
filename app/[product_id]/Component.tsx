@@ -212,7 +212,7 @@ function DualPrice({
       <span className={primaryClassName}>{primary}</span>
       {secondary && (
         <span className={secondaryClassName ?? "text-xs text-neutral-400"}>
-          ({secondary})
+          {secondary}
         </span>
       )}
     </span>
@@ -256,13 +256,14 @@ function PriceDisplay({
       <DualPrice
         primary={discounted.primary}
         secondary={discounted.secondary}
-        primaryClassName="text-lg text-neutral-900 font-semibold"
+        primaryClassName=" text-[14px] text-neutral-900"
+        secondaryClassName="text-lg text-black font-semibold"
       />
       <DualPrice
         primary={base.primary}
         secondary={base.secondary}
-        primaryClassName="text-base text-neutral-400 line-through"
-        secondaryClassName="text-xs text-neutral-300 line-through"
+        primaryClassName="text-base text-neutral-400 line-through hidden"
+        secondaryClassName="text-xs sm:text-sm text-neutral-700  line-through "
       />
     </div>
   );

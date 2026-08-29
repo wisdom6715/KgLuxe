@@ -304,9 +304,9 @@ function ProductCard({
           muted parentheses. Secondary is omitted while the exchange rate is
           still loading, rather than flashing an unconverted number. */}
       <div className="flex items-baseline gap-1.5 flex-wrap">
-        <p className="text-xs sm:text-sm text-gray-500">{primary}</p>
+        <p className="text-[10px] sm:text-[11px] text-gray-500">{primary}</p>
         {secondary && (
-          <p className="text-[10px] sm:text-[11px] text-gray-400">({secondary})</p>
+          <p className="text-xs sm:text-sm text-black font-semibold">{secondary}</p>
         )}
       </div>
     </div>

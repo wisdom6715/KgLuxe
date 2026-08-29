@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-export type CurrencyCode = "USD" | "NGN";
+export type CurrencyCode = "USD" | "NGN"
 
 const NGN_BUFFER = 100;
 const COUNTRY_ENDPOINT = "https://ipapi.co/country/";

@@ -129,9 +129,9 @@ function ProductCard({
             entirely while the exchange rate is still loading, rather than
             flashing a wrong number. */}
         <div className="flex items-baseline gap-1.5 mt-1 flex-wrap">
-          <p className="text-xs sm:text-sm text-dark-brown font-semibold">{primary}</p>
+          <p className="text-[10px] sm:text-[11px] text-text-muted font-semibold">{primary}</p>
           {secondary && (
-            <p className="text-[10px] sm:text-[11px] text-text-muted">({secondary})</p>
+            <p className=" text-xs sm:text-sm text-black font-semibold">{secondary}</p>
           )}
         </div>
       </div>

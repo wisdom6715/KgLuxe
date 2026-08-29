@@ -76,7 +76,7 @@ export default function WelcomeLaunchPopup() {
             way of welcoming you to the collection.
           </p>
 
-          <p className="mt-2 text-sm leading-relaxed text-[#A8A29E]">KGLUXE is a fashion brand operated by KGLUXEE.</p>
+          <p className="mt-2 text-sm leading-relaxed text-[#A8A29E]"><span className="text-[#685105]">KGLUXE</span> is a fashion brand operated by <span className="text-[#685105]">KGLUXEE</span></p>
 
           <button
             onClick={close}

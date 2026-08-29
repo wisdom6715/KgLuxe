@@ -31,16 +31,17 @@ import useCheckoutPayment from "@/hook/useFlutterwave";
 import type { Address } from "@/types/checkout";
 import { CART_STORAGE_KEY, useCart } from "@/hook/useAddToCart";
 import { useCurrency } from "@/hook/useCurrency";
-
+import CurrencySwitcher from "@/components/CurrencySwitcher";
 
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { user, loading: userLoading } = useCurrentUser();
 
-    const { items, loading: itemsLoading, isGuest } = useCart();
-  const {
+  const { items, loading: itemsLoading, isGuest } = useCart();
+ const {
     currency,
+    setCurrency,
     formatPrice,
     getPaymentAmount,
     loading: currencyLoading,
@@ -376,7 +377,7 @@ export default function CheckoutPage() {
   );
 
   const { handleFlutterPayment, scriptReady } = useCheckoutPayment({
-    amount: paymentAmount,
+    amount: paymentAmount!,
     currency,
     email: checkoutEmail,
     phone,
@@ -792,6 +793,15 @@ export default function CheckoutPage() {
                   <span className="text-lg font-bold text-gray-900">
                     {formatPrice(total)}
                   </span>
+                </div>
+
+                <div className="mb-5">
+                  <p className="text-xs font-medium text-gray-600 mb-2">Pay in</p>
+                  <CurrencySwitcher
+                    currency={currency}
+                    onChange={setCurrency}
+                    disabled={currencyLoading}
+                  />
                 </div>
 
                 <label className="mb-5 flex items-start gap-2 text-xs leading-relaxed text-gray-600">
