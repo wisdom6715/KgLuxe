@@ -18,6 +18,7 @@ import {
 } from "@/app/console/admin/product/_components/type";
 import ProductReviews from "@/components/ProductReview";
 import { useCart } from "@/hook/useAddToCart";
+import { useCurrency } from "@/hook/useCurrency";
 
 interface Product {
   id: string;
@@ -36,12 +37,7 @@ interface Product {
 
 const PLACEHOLDER_IMAGE = "/placeholder-product.png";
 
-const formatPrice = (value: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-  }).format(value);
+
 
 const isCustomSize = (size: string) => size.trim().toLowerCase() === "custom";
 
@@ -204,10 +200,12 @@ function PriceDisplay({
   basePrice,
   discountedPrice,
   hasDiscount,
+  formatPrice,
 }: {
   basePrice: number;
   discountedPrice: number;
   hasDiscount: boolean;
+  formatPrice: (value: number) => string;
 }) {
   if (!hasDiscount) {
     return (
@@ -244,6 +242,7 @@ export default function Component() {
 
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const { addToCart, isAdding } = useCart();
+  const { formatPrice } = useCurrency();
 
   const { discount } = useDiscount();
   const discountLive = isDiscountActive(discount);
@@ -379,6 +378,7 @@ export default function Component() {
             basePrice={sizeBasePrice}
             discountedPrice={effectivePrice}
             hasDiscount={priceChanged}
+            formatPrice={formatPrice}
           />
 
           {priceChanged && discount && (

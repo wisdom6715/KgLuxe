@@ -1,5 +1,6 @@
 "use client";
 import { useCallback } from "react";
+import type { CurrencyCode } from "@/hook/useCurrency";
 
 declare global {
   interface Window {
@@ -9,7 +10,7 @@ declare global {
 
 interface PaymentParams {
   amount: number;
-  currency?: string;
+  currency?: CurrencyCode;
   email: string;
   phone: string;
   name: string;

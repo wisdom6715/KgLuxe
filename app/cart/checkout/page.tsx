@@ -30,14 +30,21 @@ import { useCurrentUser } from "@/hook/useCurrentUser";
 import useCheckoutPayment from "@/hook/useFlutterwave";
 import type { Address } from "@/types/checkout";
 import { CART_STORAGE_KEY, useCart } from "@/hook/useAddToCart";
+import { useCurrency } from "@/hook/useCurrency";
 
-const formatPrice = (amount: number) => `$ ${amount}`;
+
 
 export default function CheckoutPage() {
   const router = useRouter();
   const { user, loading: userLoading } = useCurrentUser();
 
-  const { items, loading: itemsLoading, isGuest } = useCart();
+    const { items, loading: itemsLoading, isGuest } = useCart();
+  const {
+    currency,
+    formatPrice,
+    getPaymentAmount,
+    loading: currencyLoading,
+  } = useCurrency();
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressesLoading, setAddressesLoading] = useState(true);
@@ -339,7 +346,9 @@ export default function CheckoutPage() {
     () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
     [items],
   );
+    const paymentAmount = getPaymentAmount(total);
   const selectedAddress = isGuest
+
     ? guestAddress
     : (addresses.find((address) => address.id === selectedAddressId) ?? null);
   const checkoutName =
@@ -354,6 +363,7 @@ export default function CheckoutPage() {
     items.length > 0 &&
     (!isGuest || (checkoutName.length >= 2 && validGuestEmail)) &&
     acceptedPolicies &&
+    !currencyLoading &&
     !paying;
 
   const txRef = useMemo(
@@ -366,7 +376,8 @@ export default function CheckoutPage() {
   );
 
   const { handleFlutterPayment, scriptReady } = useCheckoutPayment({
-    amount: total,
+    amount: paymentAmount,
+    currency,
     email: checkoutEmail,
     phone,
     name: checkoutName || "Customer",
@@ -391,6 +402,7 @@ export default function CheckoutPage() {
             product: item.name,
             product_id: item.product_id,
             price: item.price,
+            paymentPrice: getPaymentAmount(item.price),
             quantity: item.quantity,
             color: item.color,
             size: item.size,
@@ -398,8 +410,9 @@ export default function CheckoutPage() {
           })),
           address: selectedAddress,
           phone,
-          amount: total,
-          txRef,
+          amount: paymentAmount,
+          currency,
+          txRef:
           transactionId,
         }),
       });

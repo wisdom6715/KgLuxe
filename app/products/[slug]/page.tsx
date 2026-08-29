@@ -14,6 +14,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { useCart } from "@/hook/useAddToCart";
 import { useWishlist } from "@/hook/useAddToWishList";
+import { useCurrency } from "@/hook/useCurrency";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,12 +43,7 @@ function toSlug(value: string): string {
     .replace(/^-|-$/g, "");
 }
 
-const formatNaira = (value: number) =>
-  new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
+
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -105,6 +101,7 @@ function FilterContent({
   priceRange,
   setPriceRange,
   maxPrice,
+  formatPrice,
 }: {
   selectedSizes: string[];
   toggleSize: (s: string) => void;
@@ -113,6 +110,7 @@ function FilterContent({
   priceRange: number;
   setPriceRange: (v: number) => void;
   maxPrice: number;
+  formatPrice: (value: number) => string;
 }) {
   return (
     <>
@@ -186,8 +184,8 @@ function FilterContent({
           className="w-full accent-dark-brown cursor-pointer"
         />
         <div className="flex justify-between mt-2">
-          <span className="text-xs text-gray-500">$0</span>
-          <span className="text-xs text-gray-500">{formatNaira(priceRange)}</span>
+          <span className="text-xs text-gray-500">{formatPrice(0)}</span>
+          <span className="text-xs text-gray-500">{formatPrice(priceRange)}</span>
         </div>
       </div>
 
@@ -203,6 +201,7 @@ interface ProductCardProps {
   onToggleWishlist: () => void;
   addBusy: boolean;
   onQuickAdd: () => void;
+  formatPrice: (value: number) => string;
 }
 
 function ProductCard({
@@ -212,6 +211,7 @@ function ProductCard({
   onToggleWishlist,
   addBusy,
   onQuickAdd,
+  formatPrice,
 }: ProductCardProps) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
@@ -297,7 +297,7 @@ function ProductCard({
       <h3 className="font-serif text-[13px] sm:text-[15px] font-semibold text-dark-brown leading-snug mb-1">
         {product.name}
       </h3>
-      <p className="text-xs sm:text-sm text-gray-500">{formatNaira(product.price)}</p>
+      <p className="text-xs sm:text-sm text-gray-500">{formatPrice(product.price)}</p>
     </div>
   );
 }
@@ -400,6 +400,7 @@ export default function ProductsPage() {
 
   // One shared listener each for the whole grid — not one per card.
   const { addToCart, isAdding } = useCart();
+  const { formatPrice } = useCurrency();
   const { isWishlisted, toggleWishlist, isMutating } = useWishlist();
 
   // Live Firestore listener
@@ -519,6 +520,7 @@ export default function ProductsPage() {
               priceRange={priceRange}
               setPriceRange={(v) => { setPriceRange(v); setPage(1); }}
               maxPrice={maxPrice}
+              formatPrice={formatPrice}
             />
           </aside>
 
@@ -618,6 +620,7 @@ export default function ProductsPage() {
                       })
                     }
                     addBusy={isAdding(product.id)}
+                    formatPrice={formatPrice}
                     onQuickAdd={() =>
                       addToCart({
                         id: product.id,
@@ -693,6 +696,7 @@ export default function ProductsPage() {
                 priceRange={priceRange}
                 setPriceRange={(v) => { setPriceRange(v); setPage(1); }}
                 maxPrice={maxPrice}
+                formatPrice={formatPrice}
               />
             </div>
 

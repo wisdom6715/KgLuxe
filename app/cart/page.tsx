@@ -12,6 +12,7 @@ import CustomMeasurementFields, {
 } from "@/components/CustomMeasurementFields";
 import { db } from "@/lib/firebase.config";
 import { type CartItem, useCart } from "@/hook/useAddToCart";
+import { useCurrency } from "@/hook/useCurrency";
 
 interface ProductOptions {
   sizes: string[];
@@ -33,7 +34,7 @@ const PERKS = [
   "Warranty Covered",
 ];
 
-const formatPrice = (amount: number) => `$ ${Number(amount || 0).toFixed(2)}`;
+
 
 const isCustomSize = (size: string | null | undefined) =>
   (size ?? "").trim().toLowerCase() === "custom";
@@ -110,6 +111,7 @@ export default function CartPage() {
     removeFromCart,
   } = useCart();
   const router = useRouter();
+  const { formatPrice } = useCurrency();
 
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);

@@ -5,10 +5,21 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_KEY);
 
+type PaymentCurrency = "USD" | "NGN";
+
+const formatMoney = (value: number, currency: PaymentCurrency) =>
+  new Intl.NumberFormat(currency === "NGN" ? "en-NG" : "en-US", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: currency === "NGN" ? 0 : 2,
+    maximumFractionDigits: currency === "NGN" ? 0 : 2,
+  }).format(Number(value) || 0);
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { uid, items, address, phone, amount, txRef, transactionId } = body;
+    const currency: PaymentCurrency = body.currency === "NGN" ? "NGN" : "USD";
 
     if (!uid || !items?.length || !address || !phone || !amount || !txRef || !transactionId) {
       return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
@@ -26,7 +37,7 @@ export async function POST(req: NextRequest) {
       verifyData.data?.status === "successful" &&
       verifyData.data?.tx_ref === txRef &&
       Number(verifyData.data?.amount) >= Number(amount) &&
-      verifyData.data?.currency === "USD";
+      verifyData.data?.currency === currency;
 
     if (!isValid) {
       return NextResponse.json({ error: "Payment verification failed." }, { status: 400 });
@@ -55,6 +66,7 @@ export async function POST(req: NextRequest) {
       address,
       phone,
       amount,
+      currency,
       tx_ref: txRef,
       flw_transaction_id: transactionId,
       flw_ref: verifyData.data?.flw_ref ?? null,
@@ -82,7 +94,7 @@ export async function POST(req: NextRequest) {
             <tr>
               <td style="padding:8px 0;">${it.product}${it.color ? ` (${it.color})` : ""}${it.size ? ` - ${it.size}` : ""}</td>
               <td style="padding:8px 0;text-align:center;">${it.quantity}</td>
-              <td style="padding:8px 0;text-align:right;">$${it.price}</td>
+              <td style="padding:8px 0;text-align:right;">${formatMoney(it.paymentPrice ?? it.price, currency)}</td>
             </tr>`
         )
         .join("");
@@ -105,7 +117,7 @@ export async function POST(req: NextRequest) {
               </thead>
               <tbody>${itemsHtml}</tbody>
             </table>
-            <p style="margin-top:16px; font-weight:600;">Total: $${amount}</p>
+            <p style="margin-top:16px; font-weight:600;">Total: ${formatMoney(amount, currency)}</p>
             <p style="margin-top:8px; color:#666; font-size:13px;">
               Delivering to: ${address.street}, ${address.city}, ${address.state}, ${address.country}
             </p>

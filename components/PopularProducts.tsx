@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase.config";
 import { useCart } from "@/hook/useAddToCart";
 import { useWishlist } from "@/hook/useAddToWishList";
+import { useCurrency } from "@/hook/useCurrency";
 
 interface Product {
   id: string;
@@ -32,13 +33,6 @@ interface Product {
 const PLACEHOLDER_IMAGE = "/placeholder-product.png";
 const PAGE_SIZE = 10;
 
-const formatNaira = (value: number) =>
-  new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
-
 interface ProductCardProps {
   product: Product;
   wishlisted: boolean;
@@ -46,6 +40,7 @@ interface ProductCardProps {
   onToggleWishlist: () => void;
   onQuickAdd: () => void;
   addBusy: boolean;
+  formatPrice: (value: number) => string;
 }
 
 function ProductCard({
@@ -55,6 +50,7 @@ function ProductCard({
   onToggleWishlist,
   onQuickAdd,
   addBusy,
+  formatPrice,
 }: ProductCardProps) {
   const router = useRouter();
   const soldOut = product.stock === 0;
@@ -123,7 +119,7 @@ function ProductCard({
           {product.name}
         </h3>
         <p className="text-xs sm:text-sm text-dark-brown font-semibold mt-1">
-          {formatNaira(product.price)}
+          {formatPrice(product.price)}
         </p>
       </div>
     </div>
@@ -152,6 +148,7 @@ export default function PopularProducts() {
   const [hasMore, setHasMore] = useState(true);
 
   const { addToCart, isAdding } = useCart();
+  const { formatPrice } = useCurrency();
   const { isWishlisted, toggleWishlist, isMutating } = useWishlist();
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
@@ -294,6 +291,7 @@ export default function PopularProducts() {
                 wishlisted={isWishlisted(product.id)}
                 wishlistBusy={isMutating(product.id)}
                 addBusy={isAdding(product.id)}
+                formatPrice={formatPrice}
                 onToggleWishlist={() =>
                   toggleWishlist({
                     id: product.id,
