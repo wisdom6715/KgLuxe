@@ -22,6 +22,22 @@ interface PayHandlers {
   onClose: () => void;
 }
 
+// "banktransfer" was already listed here — if it isn't appearing in the
+// checkout modal, that's almost always a Flutterwave dashboard setting
+// (Settings → Compliance / Payment Methods on your merchant account) rather
+// than something this config object controls.
+//
+// "applepay" additionally needs, outside of this code, all of:
+//   1. Apple Pay turned on for your merchant account in the Flutterwave dashboard.
+//   2. The domain verification file Flutterwave gives you, hosted at
+//      https://<your-domain>/.well-known/apple-developer-merchantid-domain-association
+//   3. The site served over HTTPS on your real domain — Apple Pay never
+//      appears on localhost or plain HTTP.
+//   4. The visitor on Safari (macOS or iOS) with a card already added to
+//      Apple Wallet — it won't show in Chrome/Firefox or on Android, which
+//      can look like a bug when it's actually just not applicable there.
+const PAYMENT_OPTIONS = "card, banktransfer, ussd, mobilemoney, applepay";
+
 export default function useCheckoutPayment({
   amount,
   currency = "USD",
@@ -32,8 +48,6 @@ export default function useCheckoutPayment({
 }: PaymentParams) {
   const publicKey = process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY;
 
-  // Stable function — reads live values at call time, doesn't rebuild config
-  // on every keystroke, and doesn't touch the script at all.
   const handleFlutterPayment = useCallback(
     (handlers: PayHandlers) => {
       if (typeof window === "undefined" || !window.FlutterwaveCheckout) {
@@ -51,7 +65,7 @@ export default function useCheckoutPayment({
         tx_ref: txRef,
         amount,
         currency,
-        payment_options: "card, banktransfer, ussd, mobilemoney",
+        payment_options: PAYMENT_OPTIONS,
         customer: {
           email,
           phone_number: phone,

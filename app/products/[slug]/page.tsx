@@ -43,8 +43,6 @@ function toSlug(value: string): string {
     .replace(/^-|-$/g, "");
 }
 
-
-
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
@@ -56,7 +54,6 @@ const COLORS = [
   { name: "darkgray", hex: "#555555" },
   { name: "tan",      hex: "#D4B896" },
 ];
-
 
 const SORT_OPTIONS = [
   "Latest Arrivals",
@@ -93,6 +90,8 @@ function Breadcrumb({ label }: { label: string }) {
   );
 }
 
+// Note: kept on single-currency formatPrice — a range slider showing two
+// currencies per handle would be noisy, not "intuitive".
 function FilterContent({
   selectedSizes,
   toggleSize,
@@ -110,7 +109,7 @@ function FilterContent({
   priceRange: number;
   setPriceRange: (v: number) => void;
   maxPrice: number;
-  formatPrice: (value: number) => string;
+  formatPrice: (value: number) => string | null;
 }) {
   return (
     <>
@@ -184,8 +183,8 @@ function FilterContent({
           className="w-full accent-dark-brown cursor-pointer"
         />
         <div className="flex justify-between mt-2">
-          <span className="text-xs text-gray-500">{formatPrice(0)}</span>
-          <span className="text-xs text-gray-500">{formatPrice(priceRange)}</span>
+          <span className="text-xs text-gray-500">{formatPrice(0) ?? "…"}</span>
+          <span className="text-xs text-gray-500">{formatPrice(priceRange) ?? "…"}</span>
         </div>
       </div>
 
@@ -201,7 +200,10 @@ interface ProductCardProps {
   onToggleWishlist: () => void;
   addBusy: boolean;
   onQuickAdd: () => void;
-  formatPrice: (value: number) => string;
+  formatBoth: (value: number) => {
+    primary: string | null;
+    secondary: string | null;
+  };
 }
 
 function ProductCard({
@@ -211,12 +213,13 @@ function ProductCard({
   onToggleWishlist,
   addBusy,
   onQuickAdd,
-  formatPrice,
+  formatBoth,
 }: ProductCardProps) {
   const router = useRouter();
   const [hovered, setHovered] = useState(false);
   const soldOut = product.stock === 0;
-  const coverImage = product?.imageUrls?.[0]
+  const coverImage = product?.imageUrls?.[0];
+  const { primary, secondary } = formatBoth(product.price);
 
   return (
     <div
@@ -297,7 +300,15 @@ function ProductCard({
       <h3 className="font-serif text-[13px] sm:text-[15px] font-semibold text-dark-brown leading-snug mb-1">
         {product.name}
       </h3>
-      <p className="text-xs sm:text-sm text-gray-500">{formatPrice(product.price)}</p>
+      {/* Dual pricing: selected/detected currency leads, the other trails in
+          muted parentheses. Secondary is omitted while the exchange rate is
+          still loading, rather than flashing an unconverted number. */}
+      <div className="flex items-baseline gap-1.5 flex-wrap">
+        <p className="text-xs sm:text-sm text-gray-500">{primary}</p>
+        {secondary && (
+          <p className="text-[10px] sm:text-[11px] text-gray-400">({secondary})</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -323,12 +334,10 @@ function Pagination({
 }) {
   if (totalPages <= 1) return null;
 
-  // Show at most 5 page buttons centred around current page
   const range = Array.from({ length: totalPages }, (_, i) => i + 1).filter(
     (n) => n === 1 || n === totalPages || Math.abs(n - page) <= 1
   );
 
-  // Insert ellipsis markers
   const withEllipsis: (number | "…")[] = [];
   range.forEach((n, i) => {
     if (i > 0 && n - (range[i - 1] as number) > 1) withEllipsis.push("…");
@@ -398,12 +407,10 @@ export default function ProductsPage() {
   const [page, setPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  // One shared listener each for the whole grid — not one per card.
   const { addToCart, isAdding } = useCart();
-  const { formatPrice } = useCurrency();
+  const { formatPrice, formatBoth } = useCurrency();
   const { isWishlisted, toggleWishlist, isMutating } = useWishlist();
 
-  // Live Firestore listener
   useEffect(() => {
     const q = query(collection(db, "products"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(
@@ -424,7 +431,6 @@ export default function ProductsPage() {
     return () => unsubscribe();
   }, []);
 
-  // Reset filters whenever the slug changes
   useEffect(() => {
     setPage(1);
     setSelectedSizes([]);
@@ -432,7 +438,6 @@ export default function ProductsPage() {
     setPriceRange(MAX_PRICE);
   }, [slug]);
 
-  // Lock body scroll while mobile filter drawer is open
   useEffect(() => {
     document.body.style.overflow = filtersOpen ? "hidden" : "";
     return () => {
@@ -447,15 +452,12 @@ export default function ProductsPage() {
     setPage(1);
   };
 
-  // Breadcrumb label — use stored subCategory string if we can find a match,
-  // otherwise humanise the slug
   const breadcrumbLabel = useMemo(() => {
     if (isAll) return "All Products";
     const match = allProducts.find((p) => toSlug(p.subCategory) === slug);
     return match?.subCategory ?? slug.replace(/-/g, " ");
   }, [allProducts, slug, isAll]);
 
-  // Max price driven by products currently in scope (not all products)
   const maxPrice = useMemo(() => {
     const scope = isAll
       ? allProducts
@@ -465,12 +467,10 @@ export default function ProductsPage() {
   }, [allProducts, slug, isAll]);
 
   const filtered = useMemo(() => {
-    // Scope: all products or only those matching the subcategory slug
     let list = isAll
       ? [...allProducts]
       : allProducts.filter((p) => toSlug(p.subCategory) === slug);
 
-    // Sidebar filters
     if (selectedSizes.length > 0)
       list = list.filter((p) => p.sizes.some((s) => selectedSizes.includes(s)));
 
@@ -481,7 +481,6 @@ export default function ProductsPage() {
 
     list = list.filter((p) => p.price <= priceRange);
 
-    // Sort
     if (sortBy === "Price: Low to High") list.sort((a, b) => a.price - b.price);
     if (sortBy === "Price: High to Low") list.sort((a, b) => b.price - a.price);
 
@@ -529,7 +528,6 @@ export default function ProductsPage() {
             {/* Toolbar */}
             <div className="flex items-center justify-between gap-3 mb-6 sm:mb-8 flex-wrap">
               <div className="flex items-center gap-3 order-2 sm:order-1 w-full sm:w-auto justify-between sm:justify-start">
-                {/* Filters button — mobile/tablet only */}
                 <button
                   onClick={() => setFiltersOpen(true)}
                   className="lg:hidden flex items-center gap-2 text-xs font-medium text-dark-brown border border-gray-300 px-3.5 py-2 hover:border-dark-brown transition-colors"
@@ -620,7 +618,7 @@ export default function ProductsPage() {
                       })
                     }
                     addBusy={isAdding(product.id)}
-                    formatPrice={formatPrice}
+                    formatBoth={formatBoth}
                     onQuickAdd={() =>
                       addToCart({
                         id: product.id,

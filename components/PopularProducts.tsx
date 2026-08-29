@@ -40,7 +40,12 @@ interface ProductCardProps {
   onToggleWishlist: () => void;
   onQuickAdd: () => void;
   addBusy: boolean;
-  formatPrice: (value: number) => string;
+  formatBoth: (usdAmount: number) => {
+    primary: string | null;
+    secondary: string | null;
+    primaryCode: string;
+    secondaryCode: string;
+  };
 }
 
 function ProductCard({
@@ -50,11 +55,12 @@ function ProductCard({
   onToggleWishlist,
   onQuickAdd,
   addBusy,
-  formatPrice,
+  formatBoth,
 }: ProductCardProps) {
   const router = useRouter();
   const soldOut = product.stock === 0;
   const coverImage = product.imageUrls?.[0] ?? PLACEHOLDER_IMAGE;
+  const { primary, secondary } = formatBoth(product.price);
 
   return (
     <div className="group cursor-pointer w-full" onClick={() => router.push(`/${product.id}`)}>
@@ -118,9 +124,16 @@ function ProductCard({
         <h3 className="text-xs sm:text-sm font-medium text-dark-brown group-hover:text-mid-brown transition-colors truncate">
           {product.name}
         </h3>
-        <p className="text-xs sm:text-sm text-dark-brown font-semibold mt-1">
-          {formatPrice(product.price)}
-        </p>
+        {/* Dual pricing: the selected/detected currency leads, the other
+            currency trails in muted parentheses. Secondary is omitted
+            entirely while the exchange rate is still loading, rather than
+            flashing a wrong number. */}
+        <div className="flex items-baseline gap-1.5 mt-1 flex-wrap">
+          <p className="text-xs sm:text-sm text-dark-brown font-semibold">{primary}</p>
+          {secondary && (
+            <p className="text-[10px] sm:text-[11px] text-text-muted">({secondary})</p>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -148,15 +161,12 @@ export default function PopularProducts() {
   const [hasMore, setHasMore] = useState(true);
 
   const { addToCart, isAdding } = useCart();
-  const { formatPrice } = useCurrency();
+  const { formatBoth } = useCurrency();
   const { isWishlisted, toggleWishlist, isMutating } = useWishlist();
 
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-  // Guards against the observer firing a second fetch while one is already in flight
   const fetchingRef = useRef(false);
 
-  // Categories loaded once, independent of the current filtered/paginated list,
-  // so the tab bar doesn't flicker as more products stream in.
   useEffect(() => {
     async function loadCategories() {
       try {
@@ -193,7 +203,6 @@ export default function PopularProducts() {
     []
   );
 
-  // Reset and load the first batch whenever the tab changes.
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -222,7 +231,6 @@ export default function PopularProducts() {
     setLoadingMore(true);
     try {
       const { items, newLastDoc, more } = await fetchBatch(activeTab, lastDoc);
-      // Append — never replace what's already on screen.
       setProducts((prev) => [...prev, ...items]);
       setLastDoc(newLastDoc);
       setHasMore(more);
@@ -234,7 +242,6 @@ export default function PopularProducts() {
     }
   }, [activeTab, lastDoc, hasMore, loading, fetchBatch]);
 
-  // Auto-load the next batch when the sentinel div scrolls into view.
   useEffect(() => {
     const node = sentinelRef.current;
     if (!node) return;
@@ -243,14 +250,14 @@ export default function PopularProducts() {
       (entries) => {
         if (entries[0].isIntersecting) loadMore();
       },
-      { rootMargin: "400px" } // start fetching before the user hits the very bottom
+      { rootMargin: "400px" }
     );
 
     observer.observe(node);
     return () => observer.disconnect();
   }, [loadMore]);
 
-    const categories = ["All", ...allCategories];
+  const categories = ["All", ...allCategories];
 
   return (
     <section className="py-8 sm:py-10 md:py-12 border-t border-gray-100 px-4 sm:px-6 md:px-0">
@@ -291,7 +298,7 @@ export default function PopularProducts() {
                 wishlisted={isWishlisted(product.id)}
                 wishlistBusy={isMutating(product.id)}
                 addBusy={isAdding(product.id)}
-                formatPrice={formatPrice}
+                formatBoth={formatBoth}
                 onToggleWishlist={() =>
                   toggleWishlist({
                     id: product.id,
@@ -317,7 +324,6 @@ export default function PopularProducts() {
               Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={`more-${i}`} />)}
           </div>
 
-          {/* Sentinel: triggers loadMore() when scrolled into view */}
           {hasMore && <div ref={sentinelRef} className="h-1" aria-hidden="true" />}
 
           {hasMore && !loadingMore && (

@@ -111,7 +111,7 @@ export default function CartPage() {
     removeFromCart,
   } = useCart();
   const router = useRouter();
-  const { formatPrice } = useCurrency();
+  const { formatPrice, formatBoth } = useCurrency();
 
   const [mutatingId, setMutatingId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -375,9 +375,10 @@ export default function CartPage() {
 
                           <p className="mt-0.5 text-sm text-gray-500">
                             Price:{" "}
-                            <span className="font-semibold text-gray-900">
-                              {formatPrice(item.price)}
-                            </span>
+                            <span className="font-semibold text-gray-900">{formatBoth(item.price).primary}</span>
+                            {formatBoth(item.price).secondary && (
+                              <span className="ml-1 text-xs text-gray-400">({formatBoth(item.price).secondary})</span>
+                            )}
                           </p>
                         </>
                       )}

@@ -76,6 +76,8 @@ export default function WelcomeLaunchPopup() {
             way of welcoming you to the collection.
           </p>
 
+          <p className="mt-2 text-sm leading-relaxed text-[#A8A29E]">KGLUXE is a fashion brand operated by KGLUXEE.</p>
+
           <button
             onClick={close}
             className="mt-7 w-full rounded-md border border-[#574301] bg-transparent py-2.5 text-sm uppercase tracking-[0.1em] text-[#F5EFE6] transition hover:bg-[#685105] hover:text-[#0F0D0C]"

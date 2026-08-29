@@ -37,8 +37,6 @@ interface Product {
 
 const PLACEHOLDER_IMAGE = "/placeholder-product.png";
 
-
-
 const isCustomSize = (size: string) => size.trim().toLowerCase() === "custom";
 
 const SWIPE_THRESHOLD_PX = 50;
@@ -196,30 +194,76 @@ function ProductSkeleton() {
   );
 }
 
+// Renders a USD/NGN pair: primary in normal weight, secondary muted in
+// parentheses. Secondary is omitted while the exchange rate hasn't loaded.
+function DualPrice({
+  primary,
+  secondary,
+  primaryClassName,
+  secondaryClassName,
+}: {
+  primary: string;
+  secondary: string | null;
+  primaryClassName: string;
+  secondaryClassName?: string;
+}) {
+  return (
+    <span className="inline-flex items-baseline gap-1.5">
+      <span className={primaryClassName}>{primary}</span>
+      {secondary && (
+        <span className={secondaryClassName ?? "text-xs text-neutral-400"}>
+          ({secondary})
+        </span>
+      )}
+    </span>
+  );
+}
+
 function PriceDisplay({
   basePrice,
   discountedPrice,
   hasDiscount,
-  formatPrice,
+  formatBoth,
 }: {
   basePrice: number;
   discountedPrice: number;
   hasDiscount: boolean;
-  formatPrice: (value: number) => string;
+  formatBoth: (value: number) => {
+    primary: string | null;
+    secondary: string | null;
+  };
 }) {
   if (!hasDiscount) {
+    const { primary, secondary } = formatBoth(basePrice);
+    if (!primary) return null;
     return (
-      <p className="text-lg text-neutral-700 mb-6">{formatPrice(basePrice)}</p>
+      <p className="mb-6">
+        <DualPrice
+          primary={primary}
+          secondary={secondary}
+          primaryClassName="text-lg text-neutral-700"
+        />
+      </p>
     );
   }
+
+  const discounted = formatBoth(discountedPrice);
+  const base = formatBoth(basePrice);
+  if (!discounted.primary || !base.primary) return null;
+
   return (
-    <div className="flex items-baseline gap-3 mb-6">
-      <p className="text-lg text-neutral-900 font-semibold">
-        {formatPrice(discountedPrice)}
-      </p>
-      <p className="text-base text-neutral-400 line-through">
-        {formatPrice(basePrice)}
-      </p>
+    <div className="flex items-baseline gap-3 mb-6 flex-wrap">
+      <DualPrice
+        primary={discounted.primary}
+        secondary={discounted.secondary}
+        primaryClassName="text-lg text-neutral-900 font-semibold"
+      />
+      <DualPrice
+        primary={base.primary}
+        secondary={base.secondary}
+        primaryClassName="text-base text-neutral-400 line-through"
+        secondaryClassName="text-xs text-neutral-300 line-through"
+      />
     </div>
   );
 }
@@ -242,7 +286,7 @@ export default function Component() {
 
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const { addToCart, isAdding } = useCart();
-  const { formatPrice } = useCurrency();
+  const { formatBoth } = useCurrency();
 
   const { discount } = useDiscount();
   const discountLive = isDiscountActive(discount);
@@ -330,6 +374,9 @@ export default function Component() {
     });
   };
 
+  const quantityTotal = formatBoth(effectivePrice * quantity);
+  const quantityBaseTotal = formatBoth(sizeBasePrice * quantity);
+
   return (
     <main className="bg-white px-4 sm:px-8 md:px-16 lg:px-24 xl:px-40 text-neutral-900 mt-6 sm:mt-10">
       <div className="grid lg:grid-cols-[1fr_480px]">
@@ -378,7 +425,7 @@ export default function Component() {
             basePrice={sizeBasePrice}
             discountedPrice={effectivePrice}
             hasDiscount={priceChanged}
-            formatPrice={formatPrice}
+            formatBoth={formatBoth}
           />
 
           {priceChanged && discount && (
@@ -410,23 +457,19 @@ export default function Component() {
                 </button>
               </div>
               <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-4">
-                {product.sizes.map((size) => {
-                  const tierPrice = resolveSizePrice(product, size);
-                  const showPriceHint = tierPrice !== product.price;
-                  return (
-                    <button
-                      key={size}
-                      onClick={() => setSelectedSize(size)}
-                      className={`border py-2 text-sm transition-colors flex flex-col items-center ${
-                        selectedSize === size
-                          ? "bg-neutral-900 text-white border-neutral-900"
-                          : "border-neutral-300 text-neutral-900 hover:border-neutral-900"
-                      }`}
-                    >
-                      <span>{size}</span>
-                    </button>
-                  );
-                })}
+                {product.sizes.map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => setSelectedSize(size)}
+                    className={`border py-2 text-sm transition-colors flex flex-col items-center ${
+                      selectedSize === size
+                        ? "bg-neutral-900 text-white border-neutral-900"
+                        : "border-neutral-300 text-neutral-900 hover:border-neutral-900"
+                    }`}
+                  >
+                    <span>{size}</span>
+                  </button>
+                ))}
               </div>
 
               {customSelected && (
@@ -514,15 +557,20 @@ export default function Component() {
             </button>
           </div>
 
-          {quantity > 1 && (
+          {quantity > 1 && quantityTotal.primary && (
             <p className="text-sm text-neutral-500 mb-4">
               Total:{" "}
               <span className="font-semibold text-neutral-900">
-                {formatPrice(effectivePrice * quantity)}
+                {quantityTotal.primary}
               </span>
-              {priceChanged && (
+              {quantityTotal.secondary && (
+                <span className="ml-1 text-xs text-neutral-400">
+                  ({quantityTotal.secondary})
+                </span>
+              )}
+              {priceChanged && quantityBaseTotal.primary && (
                 <span className="ml-2 text-neutral-400 line-through text-xs">
-                  {formatPrice(sizeBasePrice * quantity)}
+                  {quantityBaseTotal.primary}
                 </span>
               )}
             </p>
@@ -540,7 +588,6 @@ export default function Component() {
             <button
               onClick={handleAddToCart}
               disabled={isAdding(product.id)}
-
               className="w-full bg-neutral-900 text-white text-xs tracking-[0.15em] uppercase py-4 mb-1 hover:bg-neutral-700 transition-colors disabled:opacity-60"
             >
               {isAdding(product.id) ? "Adding..." : "Add to Cart"}
