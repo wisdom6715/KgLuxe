@@ -5,6 +5,7 @@ import type { CurrencyCode } from "@/hook/useCurrency";
 declare global {
   interface Window {
     FlutterwaveCheckout?: (config: any) => void;
+    ApplePaySession?: any;
   }
 }
 
@@ -27,16 +28,24 @@ interface PayHandlers {
 // (Settings → Compliance / Payment Methods on your merchant account) rather
 // than something this config object controls.
 //
-// "applepay" additionally needs, outside of this code, all of:
-//   1. Apple Pay turned on for your merchant account in the Flutterwave dashboard.
-//   2. The domain verification file Flutterwave gives you, hosted at
-//      https://<your-domain>/.well-known/apple-developer-merchantid-domain-association
-//   3. The site served over HTTPS on your real domain — Apple Pay never
-//      appears on localhost or plain HTTP.
-//   4. The visitor on Safari (macOS or iOS) with a card already added to
-//      Apple Wallet — it won't show in Chrome/Firefox or on Android, which
-//      can look like a bug when it's actually just not applicable there.
-const PAYMENT_OPTIONS = "card, banktransfer, ussd, mobilemoney, applepay";
+// "applepay" has been removed from this list on purpose: Flutterwave's v3
+// Inline Checkout (FlutterwaveCheckout / checkout.flutterwave.com/v3.js) has
+// no backend behind that option — it's only wired through v4's Customer ->
+// Payment Method -> Charge -> redirect flow. Leaving "applepay" here is what
+// produced "We are unable to generate a session token". Apple Pay is now
+// handled separately below via handleApplePay, which hits your own
+// /api/payments/apple-pay route instead of going through this widget.
+const PAYMENT_OPTIONS = "card, banktransfer, ussd, mobilemoney";
+
+// Exported so a checkout button can decide whether to render the Apple Pay
+// button at all — only true on Safari (macOS/iOS) with a card in Wallet.
+export function isApplePayAvailable() {
+  return (
+    typeof window !== "undefined" &&
+    !!window.ApplePaySession &&
+    window.ApplePaySession.canMakePayments()
+  );
+}
 
 export default function useCheckoutPayment({
   amount,
@@ -83,8 +92,27 @@ export default function useCheckoutPayment({
     [publicKey, txRef, amount, currency, email, phone, name]
   );
 
+  // Apple Pay path: v4 API, driven by your own backend route, then a
+  // browser redirect to Flutterwave's hosted authorization page. Does not
+  // touch window.FlutterwaveCheckout at all.
+  const handleApplePay = useCallback(async () => {
+    const res = await fetch("/api/payments/apple-pay", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ amount, currency, email, phone, name, txRef }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      console.error("Apple Pay init failed:", data.error);
+      return;
+    }
+    window.location.href = data.redirectUrl;
+  }, [amount, currency, email, phone, name, txRef]);
+
   return {
     handleFlutterPayment,
+    handleApplePay,
     scriptReady: typeof window !== "undefined" && !!window.FlutterwaveCheckout,
     hasPublicKey: !!publicKey,
   };

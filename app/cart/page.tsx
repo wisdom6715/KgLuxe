@@ -249,10 +249,10 @@ export default function CartPage() {
   const handleCheckout = () => {
     if (loading || syncing || items.length === 0) return;
 
-    if (!user) {
-      router.push(`/login?redirect=${encodeURIComponent("/cart/checkout")}`);
-      return;
-    }
+    // if (!user) {
+    //   router.push(`/login?redirect=${encodeURIComponent("/cart/checkout")}`);
+    //   return;
+    // }
 
     router.push("/cart/checkout");
   };
