@@ -125,7 +125,7 @@ export default function Header() {
           </div>
 
           {/* Hamburger — mobile only */}
-          <div className="flex flex-row gap-2 items-center">
+          <div className="flex flex-row gap-2 items-center md:hidden">
             <button
               className="text-gray-600 hover:text-dark-brown transition-colors relative"
               aria-label="Cart"
