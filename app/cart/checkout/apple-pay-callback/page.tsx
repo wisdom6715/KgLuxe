@@ -1,6 +1,5 @@
-// app/checkout/apple-pay-callback/page.tsx
 "use client";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import Header from "@/components/Header";
@@ -10,6 +9,27 @@ const MAX_ATTEMPTS = 5;
 const RETRY_DELAY_MS = 3000;
 
 export default function ApplePayCallback() {
+  return (
+    <Suspense fallback={<CallbackFallback />}>
+      <ApplePayCallbackInner />
+    </Suspense>
+  );
+}
+
+function CallbackFallback() {
+  return (
+    <div className="h-full bg-white">
+      <Header />
+      <div className="max-w-2xl mx-auto px-6 py-24 flex flex-col items-center text-center gap-4">
+        <Loader2 className="w-10 h-10 text-[#C9A96E] animate-spin" />
+        <h1 className="text-xl font-bold text-gray-900">Confirming your payment…</h1>
+      </div>
+      <Footer />
+    </div>
+  );
+}
+
+function ApplePayCallbackInner() {
   const router = useRouter();
   const params = useSearchParams();
   const [state, setState] = useState<"checking" | "success" | "error">("checking");
