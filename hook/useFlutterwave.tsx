@@ -9,6 +9,7 @@ declare global {
   }
 }
 
+
 interface PaymentParams {
   amount: number;
   currency?: CurrencyCode;
@@ -16,6 +17,12 @@ interface PaymentParams {
   phone: string;
   name: string;
   txRef: string;
+}
+
+interface ApplePayExtra {
+  uid?: string;
+  items: any[];
+  address: any;
 }
 
 interface PayHandlers {
@@ -40,6 +47,9 @@ const PAYMENT_OPTIONS = "card, banktransfer, ussd, mobilemoney";
 // Exported so a checkout button can decide whether to render the Apple Pay
 // button at all — only true on Safari (macOS/iOS) with a card in Wallet.
 export function isApplePayAvailable() {
+  if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_FORCE_APPLE_PAY === "true") {
+    return true; // dev-only override — remove before going live
+  }
   return (
     typeof window !== "undefined" &&
     !!window.ApplePaySession &&
@@ -95,17 +105,17 @@ export default function useCheckoutPayment({
   // Apple Pay path: v4 API, driven by your own backend route, then a
   // browser redirect to Flutterwave's hosted authorization page. Does not
   // touch window.FlutterwaveCheckout at all.
-  const handleApplePay = useCallback(async () => {
+  const handleApplePay = useCallback(async (extra: ApplePayExtra) => {
     const res = await fetch("/api/payments/apple-pay", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount, currency, email, phone, name, txRef }),
+      body: JSON.stringify({ amount, currency, email, phone, name, txRef, ...extra }),
     });
 
     const data = await res.json();
     if (!res.ok) {
       console.error("Apple Pay init failed:", data.error);
-      return;
+      throw new Error(data.error || "Apple Pay init failed");
     }
     window.location.href = data.redirectUrl;
   }, [amount, currency, email, phone, name, txRef]);

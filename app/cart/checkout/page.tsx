@@ -27,7 +27,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { db } from "@/lib/firebase.config";
 import { useCurrentUser } from "@/hook/useCurrentUser";
-import useCheckoutPayment from "@/hook/useFlutterwave";
+import useCheckoutPayment, { isApplePayAvailable } from "@/hook/useFlutterwave";
 import type { Address } from "@/types/checkout";
 import { CART_STORAGE_KEY, useCart } from "@/hook/useAddToCart";
 import { useCurrency } from "@/hook/useCurrency";
@@ -367,16 +367,16 @@ export default function CheckoutPage() {
     !currencyLoading &&
     !paying;
 
-  const txRef = useMemo(
-    () =>
-      user
-        ? `ORDER_${user.uid.slice(0, 6)}_${Date.now()}`
-        : `GUEST_ORDER_${Date.now()}`,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [user?.uid],
-  );
+    const txRef = useMemo(
+      () =>
+        user
+          ? `ORDER${user.uid.slice(0, 6)}${Date.now()}`
+          : `GUESTORDER${Date.now()}`,
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [user?.uid],
+    );
 
-  const { handleFlutterPayment, scriptReady } = useCheckoutPayment({
+    const { handleFlutterPayment, handleApplePay, scriptReady } = useCheckoutPayment({
     amount: paymentAmount!,
     currency,
     email: checkoutEmail,
@@ -384,6 +384,38 @@ export default function CheckoutPage() {
     name: checkoutName || "Customer",
     txRef,
   });
+
+  const handleApplePayClick = async () => {
+    if (!canPay) {
+      toast.error(
+        isGuest
+          ? "Complete your name, email, delivery address, phone number, and policy acceptance first."
+          : "Please add a delivery address, phone number, and accept the policies first.",
+      );
+      return;
+    }
+    setPaying(true);
+    try {
+      await handleApplePay({
+        ...(user ? { uid: user.uid } : {}),
+        items: items.map((item) => ({
+          product: item.name,
+          product_id: item.product_id,
+          price: item.price,
+          paymentPrice: getPaymentAmount(item.price),
+          quantity: item.quantity,
+          color: item.color,
+          size: item.size,
+          ...(user ? { cartItemId: item.id } : {}),
+        })),
+        address: selectedAddress,
+      });
+    } catch (err) {
+      console.error(err);
+      toast.error("Could not start Apple Pay. Please try another payment method.");
+      setPaying(false);
+    }
+  };
 
   const confirmOrder = async (transactionId: number | string) => {
     if (!selectedAddress || !checkoutEmail || !checkoutName) return;
@@ -864,7 +896,17 @@ export default function CheckoutPage() {
                   }}
                   onClose={() => {}}
                 />
-                
+
+                {isApplePayAvailable() && (
+                  <button
+                    onClick={handleApplePayClick}
+                    disabled={!canPay || paying}
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3 mb-3 rounded-xl text-sm font-semibold text-white bg-black hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Pay with Apple Pay
+                  </button>
+                )}
+
                 <button
                   onClick={handlePay}
                   disabled={!canPay}
