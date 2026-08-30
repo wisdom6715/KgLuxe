@@ -100,11 +100,14 @@ export async function POST(req: NextRequest) {
         .join("");
 
       await resend.emails.send({
-        from: "Orders <noreply@kgluxee.store>",
+        from: "KgLuxe Orders <noreply@kgluxee.store>",
         to: email,
-        subject: `Order Confirmed — #${orderRef.id.slice(0, 8).toUpperCase()}`,
+        subject: `KgLuxe Order Confirmed — #${orderRef.id.slice(0, 8).toUpperCase()}`,
         html: `
           <div style="font-family: sans-serif; max-width: 560px; margin: auto;">
+            <div style="text-align:center; margin-bottom:24px;">
+              <img src="https://firebasestorage.googleapis.com/v0/b/kgluxe.firebasestorage.app/o/IMG-20260718-WA0002.jpg?alt=media&token=fa734fd5-bf36-411e-a7c5-7b34187b9ca4" alt="KgLuxe" style="height:40px;" />
+            </div>
             <h2 style="color:#A07840;">Thanks for your order, ${name}!</h2>
             <p>Your payment was successful and your order is being processed.</p>
             <table style="width:100%; border-collapse:collapse; margin-top:16px;">
@@ -121,6 +124,12 @@ export async function POST(req: NextRequest) {
             <p style="margin-top:8px; color:#666; font-size:13px;">
               Delivering to: ${address.street}, ${address.city}, ${address.state}, ${address.country}
             </p>
+            <div style="margin-top:28px; padding-top:20px; border-top:1px solid #eee; font-size:13px; color:#555; line-height:1.6;">
+              <p style="margin:0 0 8px;">
+                A personal thank you for shopping with us — every order means a great deal to our small team, and we're grateful for your trust.
+              </p>
+              <p style="margin:0; font-style:italic;">— [CEO Name], Founder & CEO, KgLuxe</p>
+            </div>
             <p style="margin-top:24px; color:#000; font-size:12px;">Order ID: ${orderRef.id}</p>
           </div>
         `,
