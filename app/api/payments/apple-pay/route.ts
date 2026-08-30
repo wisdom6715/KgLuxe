@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
 
     // 3. Where Flutterwave sends the browser back to after the Apple Pay sheet closes
     const origin = req.nextUrl.origin;
-    const redirectBackUrl = `${origin}/checkout/apple-pay-callback?ref=${encodeURIComponent(txRef)}`;
+    const redirectBackUrl = `${origin}/cart/checkout/apple-pay-callback?ref=${encodeURIComponent(txRef)}`;
 
     // 4. Create the charge
     const chargeRes = await flwFetch("/charges", {

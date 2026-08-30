@@ -25,14 +25,20 @@ export async function POST(req: NextRequest) {
     const chargeRes = await flwFetch(`/charges/${pending.chargeId}`);
     const charge = chargeRes.data;
 
-    const isValid =
+        const isValid =
       charge.status === "succeeded" &&
       charge.reference === txRef &&
       Number(charge.amount) >= Number(pending.amount) &&
       charge.currency === pending.currency;
 
     if (!isValid) {
-      return NextResponse.json({ error: "Payment not confirmed yet.", status: charge.status }, { status: 400 });
+      // Still pending (common right after an Apple Pay redirect — the webhook
+      // or processor confirmation can lag a few seconds). Tell the client to
+      // retry shortly rather than treating this as a hard failure.
+      if (charge.status === "pending") {
+        return NextResponse.json({ pending: true }, { status: 202 });
+      }
+      return NextResponse.json({ error: "Payment was not successful.", status: charge.status }, { status: 400 });
     }
 
     const result = await finalizeOrder({
