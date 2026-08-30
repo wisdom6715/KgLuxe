@@ -18,9 +18,9 @@ import { auth } from "@/lib/firebase.config";
 import Image from "next/image";
 
 const NAV_ITEMS = [
-  { label: "Products", href: "/console/product", icon: ShoppingBag },
-  { label: "Customers", href: "/console/customers", icon: Users },
-  { label: "Order", href: "/console/order", icon: Users },
+  { label: "Products", href: "/console/admin/product", icon: ShoppingBag },
+  { label: "Customers", href: "/console/admin/customers", icon: Users },
+  { label: "Order", href: "/console/admin/order", icon: Users },
 ];
 
 export default function AdminSidebar() {
