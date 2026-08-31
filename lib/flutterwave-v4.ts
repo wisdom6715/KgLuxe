@@ -1,10 +1,7 @@
 // lib/flutterwave-v4.ts
 const FLW_ENV = process.env.FLW_ENV === "production" ? "production" : "sandbox";
 
-const BASE_URL =
-  FLW_ENV === "production"
-    ? "https://f4bexperience.flutterwave.com"
-    : "https://developersandbox-api.flutterwave.com";
+const BASE_URL = "https://f4bexperience.flutterwave.com"
 
 const TOKEN_URL =
   "https://idp.flutterwave.com/realms/flutterwave/protocol/openid-connect/token";
