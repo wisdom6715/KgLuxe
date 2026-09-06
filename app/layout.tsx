@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "@/provider";
 import Script from "next/script";
-
+import WhatsAppButton from "@/components/WhatsAppSupport";
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.kgluxee.com'),
   title: {
@@ -58,6 +58,7 @@ export default function RootLayout({
         <body className="bg-white text-dark-brown font-sans antialiased overflow-x-hidden">
           {children}
           <Script src="https://checkout.flutterwave.com/v3.js" strategy="afterInteractive" />
+          <WhatsAppButton />
         </body>
       </Providers>
     </html>
