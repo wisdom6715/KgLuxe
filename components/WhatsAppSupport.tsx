@@ -23,7 +23,7 @@ type WhatsAppButtonProps = {
  *   <WhatsAppButton phoneNumber="2348012345678" message="Hi, I have a question about my order" />
  */
 export default function WhatsAppButton({
-  phoneNumber = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER ?? "",
+  phoneNumber = "+97455007105",
   message = "Hi KgLuxe, I'd like some help with an order.",
   position = "right",
 }: WhatsAppButtonProps) {
