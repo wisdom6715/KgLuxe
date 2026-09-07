@@ -11,9 +11,6 @@ const CLIENT_SECRET = process.env.FLW_V4_CLIENT_SECRET!;
 
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
-console.log("CLIENT_ID present:", !!CLIENT_ID, "length:", CLIENT_ID?.length);
-console.log("CLIENT_SECRET present:", !!CLIENT_SECRET, "length:", CLIENT_SECRET?.length);
-
 async function getAccessToken(): Promise<string> {
   if (cachedToken && Date.now() < cachedToken.expiresAt - 60_000) {
     return cachedToken.value;
