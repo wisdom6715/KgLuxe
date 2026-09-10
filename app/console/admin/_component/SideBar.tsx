@@ -13,6 +13,7 @@ import {
   LogOut,
   Menu,
   X,
+  Star,
 } from "lucide-react";
 import { auth } from "@/lib/firebase.config";
 import Image from "next/image";
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { label: "Products", href: "/console/admin/product", icon: ShoppingBag },
   { label: "Customers", href: "/console/admin/customers", icon: Users },
   { label: "Order", href: "/console/admin/order", icon: Users },
+  { label: "Reviews", href: "/console/admin/review", icon: Star },
 ];
 
 export default function AdminSidebar() {
@@ -141,4 +143,4 @@ export default function AdminSidebar() {
       </aside>
     </>
   );
-}
+} 

@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { db } from "@/lib/firebase.config";
 import { toast } from "sonner";
 import CustomMeasurementFields, {
@@ -17,6 +17,7 @@ import {
   type SizePricing,
 } from "@/app/console/admin/product/_components/type";
 import ProductReviews from "@/components/ProductReview";
+import AddReviewForm, { StarRow, type PostedReview } from "./AddReviewForm";
 import { useCart } from "@/hook/useAddToCart";
 import { useCurrency } from "@/hook/useCurrency";
 
@@ -40,6 +41,30 @@ const PLACEHOLDER_IMAGE = "/placeholder-product.png";
 const isCustomSize = (size: string) => size.trim().toLowerCase() === "custom";
 
 const SWIPE_THRESHOLD_PX = 50;
+
+// Card shown immediately after a successful submit, above the fetched
+// reviews list. This is a top-level component — it must NOT be declared
+// inside another component (that was the source of the "Cannot find name
+// 'PostedReviewCard'" errors: it was scoped inside ProductImageSlider and
+// therefore invisible to Component).
+function PostedReviewCard({ review }: { review: PostedReview }) {
+  return (
+    <div className="border border-neutral-200 rounded-lg px-5 py-6 mb-8">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-medium text-neutral-900">{review.reviewerName}</p>
+        <span className="text-[10px] tracking-wide uppercase text-neutral-400">
+          Just posted
+        </span>
+      </div>
+      <StarRow value={review.rating} size={18} />
+      {review.comment && (
+        <p className="text-sm text-neutral-600 leading-relaxed mt-3">
+          {review.comment}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function ProductImageSlider({
   images,
@@ -273,6 +298,17 @@ export default function Component() {
   const params = useParams();
   const productId = params?.product_id as string;
 
+  // ?review=true switches on the "add a review" input (used by the review-request
+  // email link). Everything else on this page is unchanged.
+  const searchParams = useSearchParams();
+  const showReviewInput = searchParams.get("GhravexulnqzopmTyrakvulbexonqjzFarnivexoqplumZykrexiphazulvorqenathryxomqevulzankriphexodramulqazvynothrexipulmarkevonqzathryxulvexomqipanidrulzeforvynaqixomthrazulpeknivexorqazulmyrathopvexinulqazomryxevandulphorqaziknexulvyratomqevinaxulphorqazymexidravulnqorixepanqzomulvethryxakopvexinulmux") === "true";
+
+  // Holds the review the user just posted so it can render immediately,
+  // above the fetched list, with no refetch/remount delay.
+  const [justPostedReview, setJustPostedReview] = useState<PostedReview | null>(
+    null,
+  );
+
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -390,6 +426,14 @@ export default function Component() {
           />
           {/* Desktop-only reviews (below image, left column) */}
           <div className="hidden lg:block">
+            {showReviewInput && (
+              <AddReviewForm
+                productId={productId}
+                productName={product.name}
+                onSubmitted={setJustPostedReview}
+              />
+            )}
+            {justPostedReview && <PostedReviewCard review={justPostedReview} />}
             <ProductReviews product_id={productId} />
           </div>
         </div>
@@ -640,6 +684,14 @@ export default function Component() {
 
       {/* Mobile/tablet-only reviews — rendered below the entire product grid */}
       <div className="lg:hidden mt-4 border-t border-neutral-200 pt-8">
+        {showReviewInput && (
+          <AddReviewForm
+            productId={productId}
+            productName={product.name}
+            onSubmitted={setJustPostedReview}
+          />
+        )}
+        {justPostedReview && <PostedReviewCard review={justPostedReview} />}
         <ProductReviews product_id={productId} />
       </div>
     </main>

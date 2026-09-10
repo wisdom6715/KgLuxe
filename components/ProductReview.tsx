@@ -16,13 +16,15 @@ import {
 import { db } from "@/lib/firebase.config";
 import { Star } from "lucide-react";
 
+// Field names here must match exactly what AddReviewForm.tsx writes to the
+// "reviews" collection: productId, reviewerName, rating, comment, createdAt.
 export interface Review {
   id: string;
-  product_id: string;
-  user_id: string;
-  fullName: string;
+  productId: string;
+  reviewerUid: string;
+  reviewerName: string;
   rating: number;
-  review: string;
+  comment: string;
   createdAt: any;
 }
 
@@ -79,7 +81,7 @@ export default function ProductReviews({ product_id }: ProductReviewsProps) {
 
     const q = query(
       collection(db, "reviews"),
-      where("product_id", "==", product_id),
+      where("productId", "==", product_id),
       orderBy("createdAt", "desc"),
       limit(PAGE_SIZE)
     );
@@ -107,7 +109,7 @@ export default function ProductReviews({ product_id }: ProductReviewsProps) {
 
     const q = query(
       collection(db, "reviews"),
-      where("product_id", "==", product_id),
+      where("productId", "==", product_id),
       orderBy("createdAt", "desc"),
       startAfter(lastDoc),
       limit(PAGE_SIZE)
@@ -172,17 +174,19 @@ export default function ProductReviews({ product_id }: ProductReviewsProps) {
             <div key={r.id} className="flex gap-4">
               {/* Avatar */}
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-neutral-900 text-white flex items-center justify-center text-xs font-semibold tracking-wide">
-                {initials(r.fullName)}
+                {initials(r.reviewerName)}
               </div>
 
               {/* Body */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
-                  <span className="text-sm font-semibold text-neutral-900">{r.fullName}</span>
+                  <span className="text-sm font-semibold text-neutral-900">{r.reviewerName}</span>
                   <span className="text-xs text-neutral-400">{formatDate(r.createdAt)}</span>
                 </div>
                 <StarDisplay rating={r.rating} />
-                <p className="mt-2 text-sm text-neutral-600 leading-relaxed">{r.review}</p>
+                {r.comment && (
+                  <p className="mt-2 text-sm text-neutral-600 leading-relaxed">{r.comment}</p>
+                )}
               </div>
             </div>
           ))}
