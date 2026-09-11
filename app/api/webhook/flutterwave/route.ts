@@ -1,37 +1,38 @@
-// app/api/webhooks/flutterwave/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import crypto from "crypto";
 import { adminDb } from "@/lib/firebase-admin";
-import { finalizeOrder } from "@/lib/finalize-order";
+import { verifyAndWriteOrder } from "@/lib/order";
 
 export async function POST(req: NextRequest) {
-  const rawBody = await req.text();
-  const signature = req.headers.get("flutterwave-signature") || "";
-  const secretHash = process.env.FLW_SECRET_HASH!;
-
-  const expected = crypto.createHmac("sha256", secretHash).update(rawBody).digest("base64");
-  if (signature !== expected) {
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-  }
-
-  const payload = JSON.parse(rawBody);
-  if (payload.type === "charge.completed" && payload.data.status === "succeeded") {
-    const txRef = payload.data.reference;
-    const pendingSnap = await adminDb.collection("pending_orders").doc(txRef).get();
-    if (pendingSnap.exists) {
-      const pending = pendingSnap.data()!;
-      await finalizeOrder({
-        uid: pending.uid,
-        items: pending.items,
-        address: pending.address,
-        phone: pending.phone,
-        amount: pending.amount,
-        currency: pending.currency,
-        txRef,
-        chargeId: pending.chargeId,
-      });
+  try {
+    const signature = req.headers.get("verif-hash");
+    if (!signature || signature !== process.env.FLUTTERWAVE_WEBHOOK_HASH) {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
-  }
 
-  return NextResponse.json({ received: true });
+    const payload = await req.json();
+    if (payload.event !== "charge.completed") {
+      return NextResponse.json({ received: true }); // not a payment event, ignore
+    }
+
+    const transactionId = payload.data.id;
+    const txRef = payload.data.tx_ref;
+
+    const pendingRef = adminDb.collection("pending_orders").doc(txRef);
+    const pendingSnap = await pendingRef.get();
+    if (!pendingSnap.exists) {
+      return NextResponse.json({ received: true }); // already handled, or nothing staged
+    }
+
+    const { uid, items, address, phone, amount, currency } = pendingSnap.data()!;
+    const result = await verifyAndWriteOrder({ uid, items, address, phone, amount, currency, txRef, transactionId });
+
+    if (!("error" in result)) {
+      await pendingRef.delete();
+    }
+
+    return NextResponse.json({ received: true });
+  } catch (err) {
+    console.error("Webhook order confirmation failed:", err);
+    return NextResponse.json({ received: true }); // return 200 so Flutterwave doesn't retry-storm you
+  }
 }
