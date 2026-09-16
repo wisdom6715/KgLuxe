@@ -459,6 +459,7 @@ export default function CheckoutPage() {
     }
     handleFlutterPayment({
       callback: async (response) => {
+        console.log("FLW callback fired:", response); // ← add it here
         if (response.status === "successful") {
           await confirmOrder(response.transaction_id);
         } else {

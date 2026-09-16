@@ -30,18 +30,6 @@ interface PayHandlers {
   onClose: () => void;
 }
 
-// "banktransfer" was already listed here — if it isn't appearing in the
-// checkout modal, that's almost always a Flutterwave dashboard setting
-// (Settings → Compliance / Payment Methods on your merchant account) rather
-// than something this config object controls.
-//
-// "applepay" has been removed from this list on purpose: Flutterwave's v3
-// Inline Checkout (FlutterwaveCheckout / checkout.flutterwave.com/v3.js) has
-// no backend behind that option — it's only wired through v4's Customer ->
-// Payment Method -> Charge -> redirect flow. Leaving "applepay" here is what
-// produced "We are unable to generate a session token". Apple Pay is now
-// handled separately below via handleApplePay, which hits your own
-// /api/payments/apple-pay route instead of going through this widget.
 const PAYMENT_OPTIONS = "card, banktransfer, ussd, mobilemoney";
 
 // Exported so a checkout button can decide whether to render the Apple Pay
