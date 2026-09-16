@@ -32,7 +32,6 @@ import type { Address } from "@/types/checkout";
 import { CART_STORAGE_KEY, useCart } from "@/hook/useAddToCart";
 import { useCurrency } from "@/hook/useCurrency";
 import CurrencySwitcher from "@/components/CurrencySwitcher";
-import { CheckoutButtons } from "@/components/ApplePay";
 import { setDoc } from "firebase/firestore";
 
 export default function CheckoutPage() {
@@ -873,24 +872,6 @@ export default function CheckoutPage() {
                     online-banking password.
                   </span>
                 </label>
-
-                <CheckoutButtons
-                  amount={paymentAmount!}
-                  currency={currency}
-                  email={checkoutEmail}
-                  phone={phone}
-                  name={checkoutName || "Customer"}
-                  txRef={txRef}
-                  onCardPaymentSuccess={async (response) => {
-                    if (response.status === "successful") {
-                      await confirmOrder(response.transaction_id);
-                    } else {
-                      toast.error("Payment was not completed.");
-                    }
-                  }}
-                  onClose={() => {}}
-                />
-
                 <button
                   onClick={handlePay}
                   disabled={!canPay}

@@ -19,11 +19,6 @@ interface PaymentParams {
   txRef: string;
 }
 
-interface ApplePayExtra {
-  uid?: string;
-  items: any[];
-  address: any;
-}
 
 interface PayHandlers {
   callback: (response: any) => void;
@@ -89,28 +84,8 @@ export default function useCheckoutPayment({
     },
     [publicKey, txRef, amount, currency, email, phone, name]
   );
-
-  // Apple Pay path: v4 API, driven by your own backend route, then a
-  // browser redirect to Flutterwave's hosted authorization page. Does not
-  // touch window.FlutterwaveCheckout at all.
-  const handleApplePay = useCallback(async (extra: ApplePayExtra) => {
-    const res = await fetch("/api/payments/apple-pay", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ amount, currency, email, phone, name, txRef, ...extra }),
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      console.error("Apple Pay init failed:", data.error);
-      throw new Error(data.error || "Apple Pay init failed");
-    }
-    window.location.href = data.redirectUrl;
-  }, [amount, currency, email, phone, name, txRef]);
-
   return {
     handleFlutterPayment,
-    handleApplePay,
     scriptReady: typeof window !== "undefined" && !!window.FlutterwaveCheckout,
     hasPublicKey: !!publicKey,
   };
