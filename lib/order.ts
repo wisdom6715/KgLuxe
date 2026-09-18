@@ -142,6 +142,9 @@ export async function verifyAndWriteOrder({
   const isValid =
     verifyData.data?.tx_ref === txRef &&
     verifyData.data?.id === transactionId;
+    verifyData.data?.amount === amount;
+    Number(verifyData.data?.amount) >= Number(amount) &&
+    String(verifyData.data?.currency).toUpperCase() === String(currency).toUpperCase();
 
   if (!isValid) {
     return { error: "Payment verification failed." as const };
