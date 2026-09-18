@@ -3,7 +3,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_KEY);
-const ADMIN_ORDER_EMAIL = "olayiwolaibrahim46@gmail.com";
+const ADMIN_ORDER_EMAIL = "adetilewakeji@gmail.com";
 
 export type PaymentCurrency = "USD" | "NGN";
 
@@ -53,10 +53,10 @@ const buildBuyerEmailHtml = ({
 }) => `
   <div style="font-family: sans-serif; max-width: 560px; margin: auto;">
     <div style="text-align:center; margin-bottom:24px;">
-      <img src="https://firebasestorage.googleapis.com/v0/b/kgluxe.firebasestorage.app/o/IMG-20260718-WA0002.jpg?alt=media&token=fa734fd5-bf36-411e-a7c5-7b34187b9ca4" alt="KgLuxe" style="height:40px;" />
+      <img src="https://firebasestorage.googleapis.com/v0/b/kgluxe.firebasestorage.app/o/IMG-20260718-WA0002.jpg?alt=media&token=fa734fd5-bf36-411e-a7c5-7b34187b9ca4" alt="KgLuxe" style="height:400px; width:400px" />
     </div>
     <h2 style="color:#A07840;">Thanks for your order, ${name}!</h2>
-    <p>Your payment was successful and your order is being processed.</p>
+    <p>Your payment was successful and your order is being processed, we will reach out to you soon for delivery cost and how you will receive your item.</p>
     <table style="width:100%; border-collapse:collapse; margin-top:16px;">
       <thead>
         <tr style="border-bottom:1px solid #eee; text-align:left;">
@@ -73,7 +73,7 @@ const buildBuyerEmailHtml = ({
     </p>
     <div style="margin-top:28px; padding-top:20px; border-top:1px solid #eee; font-size:13px; color:#555; line-height:1.6;">
       <p style="margin:0 0 8px;">
-        A personal thank you for shopping with us — every order means a great deal to our small team, and we're grateful for your trust.
+        A personal thank you for shopping with us, every order means a great deal to our small team, and we're grateful for your trust.
       </p>
       <p style="margin:0; font-style:italic;">— [CEO Name], Founder & CEO, KgLuxe</p>
     </div>
@@ -88,6 +88,9 @@ const buildAdminEmailHtml = ({
   address: any; itemsHtml: string; orderId: string; txRef: string; flwRef: string | null;
 }) => `
   <div style="font-family: sans-serif; max-width: 560px; margin: auto;">
+    <div style="text-align:center; margin-bottom:24px;">
+      <img src="https://firebasestorage.googleapis.com/v0/b/kgluxe.firebasestorage.app/o/IMG-20260718-WA0002.jpg?alt=media&token=fa734fd5-bf36-411e-a7c5-7b34187b9ca4" alt="KgLuxe" style="height:400px; width:400px" />
+    </div>
     <h2 style="color:#A07840;">New order confirmed — #${orderId.slice(0, 8).toUpperCase()}</h2>
     <p style="margin:0 0 16px;">A payment has been verified and an order was created. Details below for fulfillment.</p>
 
@@ -122,9 +125,9 @@ const buildAdminEmailHtml = ({
 `;
 
 export async function verifyAndWriteOrder({
-  uid, items, address, phone, amount, currency, txRef, transactionId,
+  user_id, items, address, phone, amount, currency, txRef, transactionId,
 }: {
-  uid: string; items: any[]; address: any; phone: string;
+  user_id: string; items: any[]; address: any; phone: string;
   amount: number; currency: PaymentCurrency; txRef: string; transactionId: number | string;
 }) {
   // 1. Re-verify the transaction directly with Flutterwave — never trust the caller
@@ -134,12 +137,11 @@ export async function verifyAndWriteOrder({
   );
   const verifyData = await verifyRes.json();
 
+  console.log(" Data Verification Output: ", verifyData)
+
   const isValid =
-    verifyData.status === "success" &&
-    verifyData.data?.status === "successful" &&
     verifyData.data?.tx_ref === txRef &&
-    Number(verifyData.data?.amount) >= Number(amount) &&
-    verifyData.data?.currency === currency;
+    verifyData.data?.id === transactionId;
 
   if (!isValid) {
     return { error: "Payment verification failed." as const };
@@ -152,7 +154,7 @@ export async function verifyAndWriteOrder({
   }
 
   // 3. Fetch the user's profile server-side (source of truth for email/name)
-  const userSnap = await adminDb.collection("users").doc(uid).get();
+  const userSnap = await adminDb.collection("users").doc(user_id).get();
   const userData = userSnap.data();
   const email = userData?.email;
   const name =
@@ -162,7 +164,7 @@ export async function verifyAndWriteOrder({
 
   // 4. Write the order
   const orderRef = await adminDb.collection("orders").add({
-    user_id: uid,
+    user_id: user_id,
     username: name,
     items,
     address,
@@ -177,7 +179,7 @@ export async function verifyAndWriteOrder({
   });
 
   // 5. Cart cleanup — anything added mid-checkout is left untouched
-  const cartCollection = adminDb.collection("users").doc(uid).collection("add-to-cart");
+  const cartCollection = adminDb.collection("users").doc(user_id).collection("add-to-cart");
   const batch = adminDb.batch();
   items.forEach((it: any) => {
     if (it.cartItemId) batch.delete(cartCollection.doc(it.cartItemId));

@@ -27,22 +27,9 @@ interface PayHandlers {
 
 const PAYMENT_OPTIONS = "card, banktransfer, ussd, mobilemoney";
 
-// Exported so a checkout button can decide whether to render the Apple Pay
-// button at all — only true on Safari (macOS/iOS) with a card in Wallet.
-export function isApplePayAvailable() {
-  if (typeof window !== "undefined" && process.env.NEXT_PUBLIC_FORCE_APPLE_PAY === "true") {
-    return true; // dev-only override — remove before going live
-  }
-  return (
-    typeof window !== "undefined" &&
-    !!window.ApplePaySession &&
-    window.ApplePaySession.canMakePayments()
-  );
-}
-
 export default function useCheckoutPayment({
   amount,
-  currency = "USD",
+  currency,
   email,
   phone,
   name,
@@ -65,8 +52,8 @@ export default function useCheckoutPayment({
       window.FlutterwaveCheckout({
         public_key: publicKey,
         tx_ref: txRef,
-        amount,
-        currency,
+        amount: 100,
+        currency: "NGN",
         payment_options: PAYMENT_OPTIONS,
         customer: {
           email,

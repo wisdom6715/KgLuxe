@@ -387,7 +387,7 @@ export default function CheckoutPage() {
     txRef,
   });
 
-  const confirmOrder = async (transactionId: number | string) => {
+  const confirmOrder = async (transactionId: number | string, tx_ref: string) => {
     if (!selectedAddress || !checkoutEmail || !checkoutName) return;
     setPaying(true);
     try {
@@ -395,7 +395,7 @@ export default function CheckoutPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...(user ? { uid: user.uid } : {}),
+          ...(user ? { user_id: user.uid } : {}),
           guest: isGuest,
           customer: {
             name: checkoutName,
@@ -415,8 +415,8 @@ export default function CheckoutPage() {
           phone,
           amount: paymentAmount,
           currency,
-          txRef:
-          transactionId,
+          txRef: tx_ref,
+          transactionId: transactionId
         }),
       });
 
@@ -459,8 +459,9 @@ export default function CheckoutPage() {
     handleFlutterPayment({
       callback: async (response) => {
         console.log("FLW callback fired:", response); // ← add it here
-        if (response.status === "successful") {
-          await confirmOrder(response.transaction_id);
+        if (response.status === "completed" && response.charge_response_message ==="Approved Successful") {
+          console.log("transactio_id received: ", response.transaction_id)
+          await confirmOrder(response.transaction_id, response.tx_ref);
         } else {
           toast.error("Payment was not completed.");
         }
@@ -469,10 +470,10 @@ export default function CheckoutPage() {
     });
   };
 
-    useEffect(() => {
+  useEffect(() => {
     if (!canPay) return;
     setDoc(doc(db, "pending_orders", txRef), {
-      uid: user?.uid ?? null,
+      user_id: user?.uid ?? null,
       items: items.map((item) => ({
         product: item.name,
         product_id: item.product_id,

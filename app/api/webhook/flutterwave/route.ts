@@ -23,8 +23,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ received: true }); // already handled, or nothing staged
     }
 
-    const { uid, items, address, phone, amount, currency } = pendingSnap.data()!;
-    const result = await verifyAndWriteOrder({ uid, items, address, phone, amount, currency, txRef, transactionId });
+    const { user_id, items, address, phone, amount, currency } = pendingSnap.data()!;
+    const result = await verifyAndWriteOrder({ user_id, items, address, phone, amount, currency, txRef, transactionId });
 
     if (!("error" in result)) {
       await pendingRef.delete();
