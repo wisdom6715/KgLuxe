@@ -64,12 +64,12 @@ const buildReviewRequestEmailHtml = ({
 }) => `
   <div style="font-family: sans-serif; max-width: 560px; margin: auto;">
     <div style="text-align:center; margin-bottom:24px;">
-      <img src="https://firebasestorage.googleapis.com/v0/b/kgluxe.firebasestorage.app/o/IMG-20260718-WA0002.jpg?alt=media&token=fa734fd5-bf36-411e-a7c5-7b34187b9ca4" alt="KgLuxe" style="height:40px;" />
+      <img src="https://firebasestorage.googleapis.com/v0/b/kgluxe.firebasestorage.app/o/IMG-20260718-WA0002.jpg?alt=media&token=fa734fd5-bf36-411e-a7c5-7b34187b9ca4" alt="KgLuxe" style="height:400px; width:400px" />
     </div>
     <h2 style="color:#A07840;">How was your order, ${name}?</h2>
     <p style="color:#333; line-height:1.6;">
       We hope you're loving what you ordered. It would mean a lot if you could
-      take a minute to share a quick review — it helps other customers and
+      take a minute to share a quick review, it helps other customers and
       helps our small team keep improving.
     </p>
     <table style="width:100%; border-collapse:collapse; margin-top:16px;">
