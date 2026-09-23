@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { collection, getDocs, orderBy, query } from "firebase/firestore";
+import { collection, doc, getDoc, getDocs, orderBy, query } from "firebase/firestore";
 import { db } from "@/lib/firebase.config";
 import {
   Search,
@@ -36,6 +36,12 @@ interface OrderItem {
   product_id: string;
   quantity: number;
   size: string | null;
+}
+
+interface ProductInfo {
+  id: string;
+  name: string;
+  image: string | null;
 }
 
 type OrderStatus = "confirmed" | "in_progress" | "delivered" | "cancelled" | string;
@@ -149,13 +155,27 @@ function toDate(value: any): Date | null {
   return null;
 }
 
+// Products store images as an "imageUrls" array — take the first one.
+function resolveProductDisplay(
+  item: OrderItem,
+  productsById: Map<string, ProductInfo>
+): { name: string; image: string | null } {
+  const product = productsById.get(item.product_id);
+  return {
+    name: product?.name ?? item.product ?? "Unknown product",
+    image: product?.image ?? null,
+  };
+}
+
 // ---------- Order details modal ----------
 
 function OrderDetailsModal({
   order,
+  productsById,
   onClose,
 }: {
   order: Order;
+  productsById: Map<string, ProductInfo>;
   onClose: () => void;
 }) {
   const itemsTotal = order.items.reduce(
@@ -245,26 +265,39 @@ function OrderDetailsModal({
               Items ({order.items.length})
             </h3>
             <div className="mt-3 divide-y divide-stone-100 rounded-xl border border-stone-100">
-              {order.items.map((item) => (
-                <div
-                  key={item.cartItemId}
-                  className="flex items-center justify-between gap-4 px-4 py-3"
-                >
-                  <div>
-                    <p className="font-medium text-stone-900">
-                      {item.product}
-                    </p>
-                    <p className="text-xs text-stone-500">
-                      Qty {item.quantity}
-                      {item.color ? ` · ${item.color}` : ""}
-                      {item.size ? ` · Size ${item.size}` : ""}
+              {order.items.map((item) => {
+                const { name, image } = resolveProductDisplay(item, productsById);
+                return (
+                  <div
+                    key={item.cartItemId}
+                    className="flex items-center justify-between gap-4 px-4 py-3"
+                  >
+                    <div className="flex items-center gap-3">
+                      {image ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={image}
+                          alt=""
+                          className="h-12 w-12 shrink-0 rounded-md object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-stone-100 text-stone-400" />
+                      )}
+                      <div>
+                        <p className="font-medium text-stone-900">{name}</p>
+                        <p className="text-xs text-stone-500">
+                          Qty {item.quantity}
+                          {item.color ? ` · ${item.color}` : ""}
+                          {item.size ? ` · Size ${item.size}` : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="whitespace-nowrap font-semibold text-stone-800">
+                      {currencyFormatter.format(item.price * item.quantity)}
                     </p>
                   </div>
-                  <p className="whitespace-nowrap font-semibold text-stone-800">
-                    {currencyFormatter.format(item.price * item.quantity)}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="mt-3 flex justify-between border-t border-stone-100 px-1 pt-3 text-sm">
               <span className="text-stone-500">Items total</span>
@@ -314,6 +347,9 @@ function OrderDetailsModal({
 
 export default function CustomerOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [productsById, setProductsById] = useState<Map<string, ProductInfo>>(
+    new Map()
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -331,10 +367,10 @@ export default function CustomerOrdersPage() {
           orderBy("createdAt", "desc")
         );
         const snapshot = await getDocs(ordersQuery);
-        const fetched: Order[] = snapshot.docs.map((doc) => {
-          const data = doc.data();
+        const fetched: Order[] = snapshot.docs.map((docSnap) => {
+          const data = docSnap.data();
           return {
-            docId: doc.id,
+            docId: docSnap.id,
             address: data.address,
             amount: data.amount,
             createdAt: toDate(data.createdAt),
@@ -348,6 +384,43 @@ export default function CustomerOrdersPage() {
             username: data.username,
           };
         });
+
+        // Resolve purchased products by product_id against the "products" collection
+        const uniqueProductIds = Array.from(
+          new Set(
+            fetched
+              .flatMap((o) => o.items.map((item) => item.product_id))
+              .filter(Boolean)
+          )
+        );
+        const productEntries = await Promise.all(
+          uniqueProductIds.map(async (pid) => {
+            try {
+              const productSnap = await getDoc(doc(db, "products", pid));
+              if (!productSnap.exists()) return [pid, null] as const;
+              const data = productSnap.data();
+              const imageUrls: string[] = Array.isArray(data.imageUrls)
+                ? data.imageUrls
+                : [];
+              const info: ProductInfo = {
+                id: pid,
+                name: data.name ?? data.title ?? "Untitled product",
+                image: imageUrls[0] ?? null,
+              };
+              return [pid, info] as const;
+            } catch (err) {
+              console.error(`Failed to fetch product ${pid}:`, err);
+              return [pid, null] as const;
+            }
+          })
+        );
+        const productsMap = new Map(
+          productEntries.filter(
+            (entry): entry is [string, ProductInfo] => entry[1] !== null
+          )
+        );
+        setProductsById(productsMap);
+
         setOrders(fetched);
         setError(null);
       } catch (err) {
@@ -527,46 +600,77 @@ export default function CustomerOrdersPage() {
 
                 {!loading &&
                   !error &&
-                  pageOrders.map((order) => (
-                    <tr
-                      key={order.docId}
-                      onClick={() => setSelectedOrder(order)}
-                      className="cursor-pointer text-stone-800 transition hover:bg-stone-50"
-                    >
-                      <td className="whitespace-nowrap px-8 py-6 font-medium">
-                        {order.tx_ref.length > 18
-                          ? `${order.tx_ref.slice(0, 18)}…`
-                          : order.tx_ref}
-                      </td>
-                      <td className="px-4 py-6">
-                        <div className="flex items-center gap-3">
-                          <span
-                            className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatarColorFor(
-                              order.username ?? ""
-                            )}`}
-                          >
-                            {getInitials(order.username ?? "?")}
-                          </span>
-                          <span className="font-medium">
-                            {order.username}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-6 text-stone-600">
-                        {formatDate(order.createdAt)}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-6">
-                        <StatusBadge status={order.status} />
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-6 text-stone-600">
-                        {order.items.length} item
-                        {order.items.length === 1 ? "" : "s"}
-                      </td>
-                      <td className="whitespace-nowrap px-8 py-6 text-right font-semibold">
-                        {currencyFormatter.format(order.amount)}
-                      </td>
-                    </tr>
-                  ))}
+                  pageOrders.map((order) => {
+                    const firstItem = order.items[0];
+                    const productDisplay = firstItem
+                      ? resolveProductDisplay(firstItem, productsById)
+                      : null;
+
+                    return (
+                      <tr
+                        key={order.docId}
+                        onClick={() => setSelectedOrder(order)}
+                        className="cursor-pointer text-stone-800 transition hover:bg-stone-50"
+                      >
+                        <td className="whitespace-nowrap px-8 py-6 font-medium">
+                          {order.tx_ref.length > 18
+                            ? `${order.tx_ref.slice(0, 18)}…`
+                            : order.tx_ref}
+                        </td>
+                        <td className="px-4 py-6">
+                          <div className="flex items-center gap-3">
+                            <span
+                              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatarColorFor(
+                                order.username ?? ""
+                              )}`}
+                            >
+                              {getInitials(order.username ?? "?")}
+                            </span>
+                            <span className="font-medium">
+                              {order.username}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-6 text-stone-600">
+                          {formatDate(order.createdAt)}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-6">
+                          <StatusBadge status={order.status} />
+                        </td>
+                        <td className="px-4 py-6">
+                          {productDisplay ? (
+                            <div className="flex items-center gap-2">
+                              {productDisplay.image ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={productDisplay.image}
+                                  alt=""
+                                  className="h-14 w-14 shrink-0 rounded-md object-cover"
+                                />
+                              ) : (
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-stone-100 text-stone-400" />
+                              )}
+                              <div>
+                                <p className="text-sm font-medium text-stone-800">
+                                  {productDisplay.name}
+                                </p>
+                                {order.items.length > 1 && (
+                                  <p className="text-xs text-stone-400">
+                                    +{order.items.length - 1} more
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-stone-400">—</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-8 py-6 text-right font-semibold">
+                          {currencyFormatter.format(order.amount)}
+                        </td>
+                      </tr>
+                    );
+                  })}
               </tbody>
             </table>
           </div>
@@ -629,6 +733,7 @@ export default function CustomerOrdersPage() {
       {selectedOrder && (
         <OrderDetailsModal
           order={selectedOrder}
+          productsById={productsById}
           onClose={() => setSelectedOrder(null)}
         />
       )}

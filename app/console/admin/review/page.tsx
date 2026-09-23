@@ -63,6 +63,12 @@ interface ReviewDoc {
   createdAt: Date | null;
 }
 
+interface ProductInfo {
+  id: string;
+  name: string;
+  image: string | null;
+}
+
 type ReviewFilter = "all" | "not_requested" | "requested" | "reviewed";
 
 const PAGE_SIZE = 5;
@@ -95,6 +101,20 @@ function getInitials(name: string) {
 // order items don't consistently carry the same image field name.
 function getItemImage(item: OrderItem): string | null {
   return item.imageUrl ?? item.image ?? item.photoURL ?? null;
+}
+
+// Prefers the live product doc (resolved via product_id) over whatever
+// was embedded in the order at purchase time; falls back gracefully if
+// the product has since been deleted or renamed.
+function resolveProductDisplay(
+  item: OrderItem,
+  productsById: Map<string, ProductInfo>
+): { name: string; image: string | null } {
+  const live = productsById.get(item.product_id);
+  return {
+    name: live?.name ?? item.product ?? "Unknown product",
+    image: live?.image ?? getItemImage(item),
+  };
 }
 
 const AVATAR_COLORS = [
@@ -272,6 +292,9 @@ function ViewReviewModal({
 
 export default function ReviewsPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [productsById, setProductsById] = useState<Map<string, ProductInfo>>(
+    new Map()
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -307,6 +330,7 @@ export default function ReviewsPage() {
           };
         });
 
+        // Resolve buyer emails
         const uniqueUserIds = Array.from(
           new Set(fetched.map((o) => o.user_id).filter(Boolean))
         );
@@ -322,6 +346,39 @@ export default function ReviewsPage() {
           })
         );
         const emailByUserId = new Map(emailEntries);
+
+        // Resolve purchased products by product_id
+        const uniqueProductIds = Array.from(
+          new Set(
+            fetched
+              .flatMap((o) => o.items.map((item) => item.product_id))
+              .filter(Boolean)
+          )
+        );
+        const productEntries = await Promise.all(
+          uniqueProductIds.map(async (pid) => {
+            try {
+              const productSnap = await getDoc(doc(db, "products", pid));
+              if (!productSnap.exists()) return [pid, null] as const;
+              const data = productSnap.data();
+              const info: ProductInfo = {
+                id: pid,
+                name: data.name ?? data.title ?? "Untitled product",
+                image: data.imageUrls ?? null,
+              };
+              return [pid, info] as const;
+            } catch (err) {
+              console.error(`Failed to fetch product ${pid}:`, err);
+              return [pid, null] as const;
+            }
+          })
+        );
+        const productsMap = new Map(
+          productEntries.filter(
+            (entry): entry is [string, ProductInfo] => entry[1] !== null
+          )
+        );
+        setProductsById(productsMap);
 
         setOrders(
           fetched.map((o) => ({ ...o, email: emailByUserId.get(o.user_id) ?? null }))
@@ -480,7 +537,9 @@ export default function ReviewsPage() {
                   pageOrders.map((order) => {
                     const status = reviewStatus(order);
                     const firstItem = order.items[0];
-                    const thumb = firstItem ? getItemImage(firstItem) : null;
+                    const productDisplay = firstItem
+                      ? resolveProductDisplay(firstItem, productsById)
+                      : null;
 
                     return (
                       <tr key={order.docId} className="text-stone-800">
@@ -507,22 +566,32 @@ export default function ReviewsPage() {
                           </div>
                         </td>
                         <td className="px-4 py-6">
-                          <div className="flex items-center gap-2">
-                            {thumb ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={thumb}
-                                alt=""
-                                className="h-9 w-9 shrink-0 rounded-md object-cover"
-                              />
-                            ) : (
-                              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-stone-100 text-stone-400" />
-                            )}
-                            <span className="text-sm text-stone-600">
-                              {order.items.length} item
-                              {order.items.length === 1 ? "" : "s"}
-                            </span>
-                          </div>
+                          {productDisplay ? (
+                            <div className="flex items-center gap-2">
+                              {productDisplay.image ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={productDisplay.image}
+                                  alt=""
+                                  className="h-14 w-14 shrink-0 rounded-md object-cover"
+                                />
+                              ) : (
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-stone-100 text-stone-400" />
+                              )}
+                              <div>
+                                <p className="text-sm font-medium text-stone-800">
+                                  {productDisplay.name}
+                                </p>
+                                {order.items.length > 1 && (
+                                  <p className="text-xs text-stone-400">
+                                    +{order.items.length - 1} more
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-stone-400">—</span>
+                          )}
                         </td>
                         <td className="whitespace-nowrap px-4 py-6 text-stone-600">
                           {formatDate(order.createdAt)}
