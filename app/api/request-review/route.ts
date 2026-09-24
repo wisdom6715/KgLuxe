@@ -64,7 +64,7 @@ const buildReviewRequestEmailHtml = ({
 }) => `
   <div style="font-family: sans-serif; max-width: 560px; margin: auto;">
     <div style="text-align:center; margin-bottom:24px;">
-      <img src="https://firebasestorage.googleapis.com/v0/b/kgluxe.firebasestorage.app/o/IMG-20260718-WA0002.jpg?alt=media&token=fa734fd5-bf36-411e-a7c5-7b34187b9ca4" alt="KgLuxe" style="height:400px; width:400px" />
+      <img src="http://firebasestorage.googleapis.com/v0/b/kgluxe.firebasestorage.app/o/WhatsApp%20Image%202026-09-18%20at%203.56.47%20PM.jpeg?alt=media&token=13b3de94-8db0-4fe8-84b9-8ee17857b995" alt="KgLuxe" style="height:400px; width:400px" />
     </div>
     <h2 style="color:#A07840;">How was your order, ${name}?</h2>
     <p style="color:#333; line-height:1.6;">

@@ -53,7 +53,7 @@ const buildBuyerEmailHtml = ({
 }) => `
   <div style="font-family: sans-serif; max-width: 560px; margin: auto;">
     <div style="text-align:center; margin-bottom:24px;">
-      <img src="https://firebasestorage.googleapis.com/v0/b/kgluxe.firebasestorage.app/o/IMG-20260718-WA0002.jpg?alt=media&token=fa734fd5-bf36-411e-a7c5-7b34187b9ca4" alt="KgLuxe" style="height:400px; width:400px" />
+      <img src="http://firebasestorage.googleapis.com/v0/b/kgluxe.firebasestorage.app/o/WhatsApp%20Image%202026-09-18%20at%203.56.47%20PM.jpeg?alt=media&token=13b3de94-8db0-4fe8-84b9-8ee17857b995" alt="KgLuxe" style="height:400px; width:400px" />
     </div>
     <h2 style="color:#A07840;">Thanks for your order, ${name}!</h2>
     <p>Your payment was successful and your order is being processed, we will reach out to you soon for delivery cost and how you will receive your item.</p>
@@ -89,7 +89,7 @@ const buildAdminEmailHtml = ({
 }) => `
   <div style="font-family: sans-serif; max-width: 560px; margin: auto;">
     <div style="text-align:center; margin-bottom:24px;">
-      <img src="https://firebasestorage.googleapis.com/v0/b/kgluxe.firebasestorage.app/o/IMG-20260718-WA0002.jpg?alt=media&token=fa734fd5-bf36-411e-a7c5-7b34187b9ca4" alt="KgLuxe" style="height:400px; width:400px" />
+      <img src="http://firebasestorage.googleapis.com/v0/b/kgluxe.firebasestorage.app/o/WhatsApp%20Image%202026-09-18%20at%203.56.47%20PM.jpeg?alt=media&token=13b3de94-8db0-4fe8-84b9-8ee17857b995" alt="KgLuxe" style="height:400px; width:400px" />
     </div>
     <h2 style="color:#A07840;">New order confirmed — #${orderId.slice(0, 8).toUpperCase()}</h2>
     <p style="margin:0 0 16px;">A payment has been verified and an order was created. Details below for fulfillment.</p>
