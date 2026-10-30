@@ -16,7 +16,7 @@ function SubHeroCard({ card }: { card: SubHeroCard }) {
           {card.subtitle}
         </p>
         <a
-          href="#"
+          href={`${card.href || "#"}`}
           className="inline-block rounded-xl border border-dark-brown text-dark-brown text-[10px] sm:text-xs font-medium px-3.5 sm:px-4 md:px-5 py-1.5 sm:py-2 hover:bg-dark-brown hover:text-white transition-colors"
         >
           {card.ctaLabel}

@@ -10,8 +10,8 @@ export const metadata: Metadata = {
 };
 
 const EFFECTIVE_DATE = "21 August 2026";
-const SUPPORT_EMAIL = "hello@kgluxee.com";
-const SUPPORT_PHONE = "+14314588817";
+const SUPPORT_EMAIL = "kgluxecouture@gmail.com";
+const SUPPORT_PHONE = "07078603586";
 
 export default function RefundPolicyPage() {
   return (

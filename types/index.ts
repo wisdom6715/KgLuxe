@@ -28,6 +28,7 @@ export interface SubHeroCard {
   ctaLabel: string;
   image: string;
   bgColor: string;
+  href?: string;
 }
 
 export interface FooterColumn {

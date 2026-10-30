@@ -32,14 +32,16 @@ export const subHeroCards: SubHeroCard[] = [
     ctaLabel: "Shop Now",
     image: "/images/men-welcome.png",
     bgColor: "#EDE8E0",
+    href: "/category/men",
   },
   {
     id: "sh-2",
     title: "Enchanting styles",
     subtitle: "for every women",
     ctaLabel: "Shop Now",
-    image: "/images/women-welcome.jpg",
+    image: "/images/dresses.jpeg",
     bgColor: "#E8E8E8",
+    href: "/category/women",
   },
 ];
 

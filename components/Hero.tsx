@@ -3,11 +3,17 @@ import { hero } from "@/data";
 export default function Hero() {
   return (
     <section className="relative w-full h-[420px] sm:h-[480px] md:h-[550px] lg:h-[600px] overflow-hidden px-4 sm:px-8 md:px-12 lg:px-20 md:rounded-2xl">
-      {/* Background image */}
+      {/* Background image: mobile & tablet */}
       <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat md:rounded-2xl"
-        style={{ backgroundImage: `url('/images/hero.png')` }}
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat md:rounded-2xl lg:hidden"
+        style={{ backgroundImage: `url('/hero.jpeg')` }}
       />
+      {/* Background image: laptop & desktop */}
+      <div
+        className="absolute inset-0 hidden bg-cover bg-center bg-no-repeat lg:block lg:rounded-2xl"
+        style={{ backgroundImage: `url('/heros.jpg')` }}
+      />
+
       {/* Gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-black/30 to-transparent" />
 

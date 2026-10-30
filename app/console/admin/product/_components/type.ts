@@ -23,6 +23,7 @@ export const SUBCATEGORIES: Record<CategoryValue, string[]> = {
     "kaftans-boubou",
     "two-piece-set",
     "mother-daughter",
+    "trouser-set",
   ],
   men: [
     "african-heritage",

@@ -34,7 +34,7 @@ export default function Footer() {
     {
       name: "whatsapp",
       label: "WhatsApp",
-      href: "https://wa.me/14314588817?text=Hello%2C%20I'm%20interested%20in%20your%20products",
+      href: "https://wa.me/07078603586?text=Hello%2C%20I'm%20interested%20in%20your%20products",
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -87,8 +87,8 @@ export default function Footer() {
   const contactLinks = [
     {
       name: "email",
-      label: "info@kgluxee.com",
-      href: "mailto:hello@kgluxee.com",
+      label: "kgluxecouture@gmail.com",
+      href: "mailto:kgluxecouture@gmail.com",
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -102,8 +102,8 @@ export default function Footer() {
     },
     {
       name: "phone-ng",
-      label: "+234 805 590 9074",
-      href: "tel:+2348055909074",
+      label: "+234 707 860 3586",
+      href: "tel:+2347078603586",
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
