@@ -71,10 +71,10 @@ export const categories: Category[] = [
   },
   {
     id: "cat-4",
-    label: "Accessories",
-    image: "/images/accessories.png",
-    tag: "ACCESSORIES",
-    href: "/category/accessories"
+    label: "Turban & Headwraps",
+    image: "/images/turban.jpeg",
+    tag: "TURBAN & HEADWRAPS",
+    href: "/products/headwraps"
   },
 ];
 
