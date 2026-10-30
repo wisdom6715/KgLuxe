@@ -34,7 +34,7 @@ export default function Footer() {
     {
       name: "whatsapp",
       label: "WhatsApp",
-      href: "https://wa.me/07078603586?text=Hello%2C%20I'm%20interested%20in%20your%20products",
+      href: "https://wa.me/+2347078603586?text=Hello%2C%20I'm%20interested%20in%20your%20products",
       icon: (
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -101,6 +101,21 @@ export default function Footer() {
       ),
     },
     {
+      name: "email",
+      label: "info@kgluxee.com",
+      href: "mailto:hello@kgluxee.com",
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            strokeWidth={1.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+          />
+        </svg>
+      ),
+    },
+    {
       name: "phone-ng",
       label: "+234 707 860 3586",
       href: "tel:+2347078603586",
@@ -139,7 +154,7 @@ export default function Footer() {
           {/* Brand column */}
           <div className="col-span-2 sm:col-span-2 md:col-span-1">
             <a href="#" className="font-serif text-lg sm:text-xl font-bold text-dark-brown tracking-tight block mb-3 sm:mb-4">
-              KgLuxee
+              KgLuxe
             </a>
             <p className="text-sm text-text-muted leading-relaxed max-w-xs sm:max-w-none">
               Luxury in every detail

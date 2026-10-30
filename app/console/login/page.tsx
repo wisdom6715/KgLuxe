@@ -94,7 +94,7 @@ export default function LoginPage() {
               <rect x="2" y="11" width="7" height="7" rx="1" />
             </svg>
           </div>
-          <span className="text-lg font-bold text-gray-900 tracking-wide">KgLuxee</span>
+          <span className="text-lg font-bold text-gray-900 tracking-wide">KgLuxe</span>
         </div>
 
         {/* Heading */}

@@ -112,7 +112,7 @@ const WHY_CHOOSE = [
   },
   {
     title: "Worldwide Shipping",
-    copy: "Bringing KGLUXEE to your doorstep anywhere.",
+    copy: "Bringing KGLUXE to your doorstep anywhere.",
     icon: (
       <>
         <circle cx="12" cy="12" r="9" />
@@ -190,7 +190,7 @@ export default function AboutPage() {
               <h1 className="font-serif text-5xl sm:text-6xl md:text-7xl leading-[0.98] mb-7">
                 About
                 <br />
-                KGLUXEE
+                KGLUXE
               </h1>
               <p className="text-[15px] leading-relaxed text-[#6b6860] max-w-md mb-8">
                 Founded on a passion for understated elegance, KGLUXEE is a sanctuary for those who seek the
@@ -254,7 +254,7 @@ export default function AboutPage() {
         <section className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-12 py-16 md:py-24">
           <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
             <div data-fade>
-              <h2 className="font-serif text-3xl sm:text-4xl mb-6">Who is KGLUXEE?</h2>
+              <h2 className="font-serif text-3xl sm:text-4xl mb-6">Who is KGLUXE?</h2>
               <p className="text-[15px] leading-relaxed text-[#6b6860] mb-5">
                 KGLUXEE is more than a fashion house; it is a manifestation of modern femininity. We specialize in
                 the curation and creation of tailored dresses, kaftans, boubous, and abayas that resonate with the

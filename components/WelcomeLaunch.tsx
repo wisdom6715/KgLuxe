@@ -69,14 +69,14 @@ export default function WelcomeLaunchPopup() {
             A Note From Our Founder
           </p>
           <h2 className="mt-2 font-serif text-2xl text-[#F5EFE6]">
-            Welcome to KgLuxee
+            Welcome to KgLuxe
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-[#A8A29E]">
             Thank you for stopping by. Enjoy 10% off your first order as our
             way of welcoming you to the collection.
           </p>
 
-          <p className="mt-2 text-sm leading-relaxed text-[#A8A29E]"><span className="text-[#685105]">KGLUXE</span> is a fashion brand operated by <span className="text-[#685105]">KGLUXEE</span></p>
+          <p className="mt-2 text-sm leading-relaxed text-[#A8A29E]"><span className="text-[#685105]">KGLUXE</span> is a fashion brand operated by <span className="text-[#685105]">KGLUXE</span></p>
 
           <button
             onClick={close}

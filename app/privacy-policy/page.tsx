@@ -27,7 +27,7 @@ export default function PrivacyPolicyPage() {
             Privacy Policy
           </h1>
           <p className="mt-5 max-w-3xl text-[15px] leading-relaxed text-neutral-600">
-            This policy explains, in plain language, what personal data KGLUXEE
+            This policy explains, in plain language, what personal data KGLUXE
             collects, why we use it, which service providers receive it, how
             long we keep it, and how you can exercise your rights.
           </p>
