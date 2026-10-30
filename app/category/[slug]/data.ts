@@ -179,7 +179,7 @@ export const categories: CategoryData[] = [
     meta: "GIRLS, BOYS & FOOTWEAR",
     type: "text-panel",
     textPanel: {
-      image: "/images/children.png",
+      image: "/images/children.jpeg",
       imageLabel: "The Young Collection",
       title: "Matching Sets",
       description:

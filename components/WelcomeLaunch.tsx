@@ -6,7 +6,7 @@ import Image from "next/image";
 const STORAGE_KEY_SESSION_DISMISS = "kgluxe_popup_dismissed_session";
 
 export default function WelcomeLaunchPopup() {
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(true);
 
   const close = useCallback(() => {
     setVisible(false);
@@ -58,10 +58,10 @@ export default function WelcomeLaunchPopup() {
             src="/ceo.jpeg"
             alt="Founder & CEO of KgLuxe"
             fill
-            className="object-cover object-top opacity-90"
+            className="object-cover object-center opacity-90"
             priority
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0F0D0C] via-[#0F0D0C]/20 to-transparent" />
+          <div className="absolute inset-0 pt-12 bg-gradient-to-t from-[#0F0D0C] via-[#0F0D0C]/20 to-transparent" />
         </div>
 
         <div className="px-6 pb-7 pt-4 text-center">
@@ -72,7 +72,7 @@ export default function WelcomeLaunchPopup() {
             Welcome to KgLuxe
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-[#A8A29E]">
-            Thank you for stopping by. Enjoy 10% off your first order as our
+            Thank you for stopping by. Enjoy 20% off your first order as our
             way of welcoming you to the collection.
           </p>
 

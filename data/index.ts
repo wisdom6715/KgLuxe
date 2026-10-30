@@ -18,7 +18,7 @@ export const subNavItems: NavItem[] = [
 ];
 
 export const hero = {
-  title: "Summer Arrival of Outfit",
+  title: "Winter Arrival of Outfit",
   subtitle: "Discover quality fashion that reflects your style and makes everyday enjoyable.",
   ctaLabel: "Explore Product",
   image: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1400&q=80",
@@ -30,16 +30,16 @@ export const subHeroCards: SubHeroCard[] = [
     title: "Where dreams",
     subtitle: "meet couture",
     ctaLabel: "Shop Now",
-    image: "/images/men-welcome.png",
+    image: "/images/dream.jpeg",
     bgColor: "#EDE8E0",
-    href: "/category/men",
+    href: "/products/all",
   },
   {
     id: "sh-2",
     title: "Enchanting styles",
     subtitle: "for every women",
     ctaLabel: "Shop Now",
-    image: "/images/dresses.jpeg",
+    image: "/images/sub-hero.jpg",
     bgColor: "#E8E8E8",
     href: "/category/women",
   },
@@ -50,31 +50,31 @@ export const categoryTabs = ["All", "Women","Men", "Children"];
 export const categories: Category[] = [
   {
     id: "cat-1",
-    label: "Shoes",
-    image: "/images/footwear.png",
-    tag: "SHOES",
-    href: "/category/children"
+    label: "Women",
+    image: "/images/modest-wear.jpeg",
+    tag: "WOMEN",
+    href: "/category/women"
   },
   {
     id: "cat-2",
-    label: "Accessories",
-    image: "/images/jewellery.jpg",
-    tag: "ACCESSORIES",
-    href: "/category/accessories"
+    label: "Men",
+    image: "/images/men-category.png",
+    tag: "MEN",
+    href: "/category/men"
   },
   {
     id: "cat-3",
-    label: "Bags",
-    image: "/images/accessories.png",
-    tag: "BAG",
-    href: "/category/accessories"
+    label: "Children",
+    image: "/images/children.jpeg",
+    tag: "CHILDREN",
+    href: "/category/children"
   },
   {
     id: "cat-4",
-    label: "men",
-    image: "/images/men-category.png",
-    tag: "Men",
-    href: "/category/men"
+    label: "Accessories",
+    image: "/images/accessories.png",
+    tag: "ACCESSORIES",
+    href: "/category/accessories"
   },
 ];
 
