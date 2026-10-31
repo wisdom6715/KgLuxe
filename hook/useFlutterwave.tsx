@@ -52,7 +52,7 @@ export default function useCheckoutPayment({
       window.FlutterwaveCheckout({
         public_key: publicKey,
         tx_ref: txRef,
-        amount: 100,
+        amount: amount,
         currency: "NGN",
         payment_options: PAYMENT_OPTIONS,
         customer: {
