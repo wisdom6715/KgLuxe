@@ -53,7 +53,7 @@ export default function useCheckoutPayment({
         public_key: publicKey,
         tx_ref: txRef,
         amount: amount,
-        currency: "NGN",
+        currency: currency,
         payment_options: PAYMENT_OPTIONS,
         customer: {
           email,
